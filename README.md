@@ -110,6 +110,12 @@ Sources/
 
 ## 已修复的关键问题（早期 Swift 尝试的 bug）
 
+### 第十一轮修复（界面优化）
+
+- **记分改为带边框的两列表格**（Raw | Verified，各含 Pts/Mult/Score），
+  固定 250pt 宽，位于右侧、不再溢出/穿模（修复了左侧列宽度约束冲突）。
+- **Rate / Pile-Up / HST 移到最底部状态栏右侧**，与时钟同一行。
+
 ### 第十轮修复（界面优化）
 
 - **记分回到右侧传统显示**：Raw/Verified 分数（Pts/Mult/Score）、Rate、

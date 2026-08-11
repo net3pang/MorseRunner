@@ -278,42 +278,66 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         let tableRow = NSStackView(views: [logScroll])
         tableRow.orientation = .horizontal
 
-        // ---- row 5: status
+        // ---- row 5: status (rate / pile-up on the right, same line as clock)
         statusBar.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         statusBar.lineBreakMode = .byTruncatingTail
-        let statusRow = NSStackView(views: [clockLabel, modeLabel, statusBar])
+        rateLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        pileupLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        hstScoreLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        let statusSpacer = NSView()
+        statusSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        statusSpacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let statusRow = NSStackView(views: [clockLabel, modeLabel, statusBar,
+                                            statusSpacer, rateLabel, pileupLabel, hstScoreLabel])
         statusRow.orientation = .horizontal
         statusRow.spacing = 12
 
-        // ---- score sidebar: traditional multi-line display on the right,
-        // fixed width so the window never jumps. It spans the same height as
-        // the rows to its left (band strip -> score table).
+        // ---- score box: bordered two-column table (Raw | Verified) on the
+        // right; fixed width so the window never jumps.
         func sideLabel(_ text: String, bold: Bool = false) -> NSTextField {
             let l = NSTextField(labelWithString: text)
             l.font = bold ? NSFont.boldSystemFont(ofSize: 12) : NSFont.systemFont(ofSize: 12)
             return l
         }
-        let sidebar = NSStackView(views: [
-            sideLabel("Raw", bold: true), rawPtsLabel, rawMultLabel, rawScoreLabel,
-            sideLabel("Verified", bold: true), verPtsLabel, verMultLabel, verScoreLabel,
-            sideLabel("Rate"), rateLabel,
-            sideLabel("Pile-Up"), pileupLabel,
-            hstScoreLabel,
+        for l in [rawPtsLabel, rawMultLabel, rawScoreLabel,
+                  verPtsLabel, verMultLabel, verScoreLabel] {
+            l.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        }
+        func scoreColumn(_ title: String, _ pts: NSTextField, _ mult: NSTextField,
+                         _ score: NSTextField) -> NSStackView {
+            let v = NSStackView(views: [sideLabel(title, bold: true), pts, mult, score])
+            v.orientation = .vertical
+            v.alignment = .leading
+            v.spacing = 4
+            return v
+        }
+        let scoreInner = NSStackView(views: [
+            scoreColumn("Raw", rawPtsLabel, rawMultLabel, rawScoreLabel),
+            scoreColumn("Verified", verPtsLabel, verMultLabel, verScoreLabel),
         ])
-        sidebar.orientation = .vertical
-        sidebar.alignment = .leading
-        sidebar.spacing = 4
-        sidebar.widthAnchor.constraint(equalToConstant: 190).isActive = true
-        sidebar.setContentHuggingPriority(.required, for: .horizontal)
+        scoreInner.orientation = .horizontal
+        scoreInner.spacing = 24
 
-        // ---- assemble: full-width top strip, then left column + right sidebar
+        let scoreBox = NSBox()
+        scoreBox.boxType = .custom
+        scoreBox.borderWidth = 1
+        scoreBox.cornerRadius = 4
+        scoreBox.titlePosition = .noTitle
+        scoreBox.contentViewMargins = NSSize(width: 12, height: 10)
+        scoreBox.contentView = scoreInner
+        scoreBox.translatesAutoresizingMaskIntoConstraints = false
+        scoreBox.widthAnchor.constraint(equalToConstant: 250).isActive = true
+        scoreBox.setContentHuggingPriority(.required, for: .horizontal)
+
+        // ---- assemble: full-width top strip, then left column + score box
         let leftColumn = NSStackView(views: [row1, row2, entryRow, keyRow, tableRow])
         leftColumn.orientation = .vertical
         leftColumn.alignment = .leading
         leftColumn.spacing = 8
         leftColumn.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        leftColumn.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let bodyRow = NSStackView(views: [leftColumn, sidebar])
+        let bodyRow = NSStackView(views: [leftColumn, scoreBox])
         bodyRow.orientation = .horizontal
         bodyRow.spacing = 16
         bodyRow.alignment = .top
@@ -335,8 +359,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
             bodyRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            leftColumn.widthAnchor.constraint(equalTo: bodyRow.widthAnchor),
-            sidebar.topAnchor.constraint(equalTo: bodyRow.topAnchor),
+            statusRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            scoreBox.topAnchor.constraint(equalTo: bodyRow.topAnchor),
         ])
         vc.view = root
         return vc
