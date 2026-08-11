@@ -208,11 +208,13 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         monitorSlider.isContinuous = true
         monitorSlider.target = self
         monitorSlider.action = #selector(monitorChanged)
-        monitorSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        monitorSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        monitorSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         outputVolumeSlider.isContinuous = true
         outputVolumeSlider.target = self
         outputVolumeSlider.action = #selector(outputVolumeChanged)
-        outputVolumeSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        outputVolumeSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        outputVolumeSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let row2 = NSStackView(views: [
             qsbCheck, qrmCheck, qrnCheck, flutterCheck, lidsCheck,
             label("Self Mon"), monitorSlider,
@@ -335,8 +337,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         topArea.orientation = .vertical
         topArea.alignment = .leading
         topArea.spacing = 8
-        topArea.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        topArea.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        // sliders row and F1-F8 row end on the same vertical line
+        row2.widthAnchor.constraint(equalTo: keyRow.widthAnchor).isActive = true
 
         let bodyRow = NSStackView(views: [topArea, scoreBox])
         bodyRow.orientation = .horizontal
@@ -359,10 +361,9 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             logScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 260),
             logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            bodyRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            tableRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             statusRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             scoreBox.topAnchor.constraint(equalTo: bodyRow.topAnchor),
+            tableRow.trailingAnchor.constraint(equalTo: scoreBox.trailingAnchor),
         ])
         vc.view = root
         return vc
