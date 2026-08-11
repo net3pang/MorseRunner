@@ -28,25 +28,21 @@ ring.stroke()
 
 // ---- CW waveform (M = -- , R = .-.)
 let lineY: CGFloat = 620
-let dashW: CGFloat = 130
-let dotW: CGFloat = 55
-let gap: CGFloat = 48
-let charGap: CGFloat = 130
-let strokeW: CGFloat = 84
+let dashW: CGFloat = 120
+let dotW: CGFloat = 52
+let gap: CGFloat = 52
+let charGap: CGFloat = 140
+let strokeW: CGFloat = 80
 
-let shapes: [(CGFloat, CGFloat)] = [
-    // M: dash dash
-    (dashW, 0), (dashW, 1),
-    // character gap
-    (0, 0), (0, 0),
-    // R: dot dash dot
-    (dotW, 0), (dashW, 1), (dotW, 0),
-]
-// total width = 130+48+130+48+130+55+48+130+48+55 = 822, centered
-var x: CGFloat = (size - 822) / 2
 NSColor.white.setFill()
 NSColor.white.setStroke()
-for (w, _) in shapes {
+
+// Morse for MR:  --  .-.
+// Visual width = dash + gap + dash + charGap + dot + gap + dash + gap + dot
+let total: CGFloat = dashW + gap + dashW + charGap + dotW + gap + dashW + gap + dotW
+var x: CGFloat = (size - total) / 2   // centred, both ends keep the stroke radius
+
+func drawElement(_ w: CGFloat) {
     if w > 0 {
         let r = NSRect(x: x, y: lineY - strokeW / 2, width: w, height: strokeW)
         NSBezierPath(roundedRect: r, xRadius: strokeW / 2, yRadius: strokeW / 2).fill()
@@ -55,7 +51,12 @@ for (w, _) in shapes {
         x += charGap
     }
 }
-_ = gap
+drawElement(dashW)   // M: dash
+drawElement(dashW)   // M: dash
+drawElement(0)       // inter-character space
+drawElement(dotW)    // R: dot
+drawElement(dashW)   // R: dash
+drawElement(dotW)    // R: dot
 
 // ---- "MR" letters
 let text = "MR"
