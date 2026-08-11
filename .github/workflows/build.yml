@@ -1,8 +1,11 @@
 name: build
 
+# Build only for version tags (e.g. v1.0.0) and pull requests.
+# Pushing to main does NOT compile — releases are built from tags.
+
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -23,6 +26,16 @@ jobs:
 
       - name: Build release TUI
         run: swift build -c release --product MorseRunnerTUI
+
+      - name: Package .app
+        run: ./make-app.sh
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MorseRunner-macOS
+          path: dist/MorseRunner.app
+          if-no-files-found: error
 
   linux:
     name: Linux (engine + terminal UI)
