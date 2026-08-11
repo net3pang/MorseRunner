@@ -292,7 +292,10 @@ func send(_ msg: StationMessage) {
 }
 
 let renderTimer = Timer(timeInterval: 0.5, repeats: true) { _ in
-    render()
+    // the timer fires on RunLoop.main, so this is the main actor
+    MainActor.assumeIsolated {
+        render()
+    }
 }
 RunLoop.main.add(renderTimer, forMode: .common)
 

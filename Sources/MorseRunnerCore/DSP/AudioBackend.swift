@@ -32,7 +32,7 @@ public protocol AudioBackend: AnyObject {
 /// real time so headless runs, tests, and the terminal UI work everywhere.
 /// One block = 512 samples at 11025 Hz ≈ 46.4 ms; with a 20 ms timer every
 /// second tick is close enough to real time.
-public final class SilentAudioBackend: AudioBackend {
+public final class SilentAudioBackend: AudioBackend, @unchecked Sendable {
     public init() {}
 
     private var timer: Timer?
