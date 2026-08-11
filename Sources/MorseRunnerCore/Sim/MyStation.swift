@@ -128,8 +128,11 @@ public final class MyStation: Station {
         if envelope == nil {
             if !pieces.isEmpty { pieces.removeFirst() }
             if !pieces.isEmpty { sendNextPiece() }
-            // cursor to exchange field
-            SimEngine.shared.uiHooks.onAdvance?()
+            // cursor to exchange field (original: only when MainForm.MustAdvance)
+            if SimEngine.shared.mustAdvance {
+                SimEngine.shared.mustAdvance = false
+                SimEngine.shared.uiHooks.onAdvance?()
+            }
         }
         return result
     }

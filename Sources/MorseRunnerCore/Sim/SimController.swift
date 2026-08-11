@@ -278,6 +278,7 @@ public final class SimController {
     /// Port of Edit1KeyPress + the Enter-key QSO flow.
     public func enterKeyPressed() {
         guard let contest = Contest.shared else { return }
+        SimEngine.shared.mustAdvance = false   // original ProcessEnter: MustAdvance := false
         _ = contest
 
         // status bar station info for contests whose exchange is unaffected
@@ -342,7 +343,8 @@ public final class SimController {
             sendMsg(.tu)
             Log.shared.saveQso(call: enteredCall, exch1: enteredExch1, exch2: enteredExch2)
         } else {
-            SimEngine.shared.uiHooks.onAdvance?()
+            // original: MustAdvance := true (Advance fires on next envelope end)
+            SimEngine.shared.mustAdvance = true
         }
     }
 
@@ -385,6 +387,7 @@ public final class SimController {
         enteredCall = ""
         enteredExch1 = ""
         enteredExch2 = ""
+        SimEngine.shared.mustAdvance = false
         if Settings.simContest == .arrlSS {
             Log.shared.setExchangeSummaryText("")
         }

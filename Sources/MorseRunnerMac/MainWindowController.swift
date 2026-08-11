@@ -47,9 +47,10 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     private let wpmLabel = NSTextField(labelWithString: "25 wpm")
     private let pitchCombo = NSPopUpButton()
     private let bwCombo = NSPopUpButton()
-    private let activityField = NSTextField(string: "2")
-    private let durationField = NSTextField(string: "30")
     private let ritLabel = NSTextField(labelWithString: "RIT 0")
+
+    // ---- Settings menu (original menu items, kept out of the main window)
+    private var serialNRMenuItems: [NSMenuItem] = []
 
     // ---- conditions
     private let qsbCheck = NSButton(checkboxWithTitle: "QSB", target: nil, action: nil)
@@ -59,13 +60,6 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     private let lidsCheck = NSButton(checkboxWithTitle: "Lids", target: nil, action: nil)
     private let monitorSlider = NSSlider(value: 0.75, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let outputVolumeSlider = NSSlider(value: 0.35, minValue: 0, maxValue: 1, target: nil, action: nil)
-
-    // ---- receive CW speed limits (original: Settings -> CW Max/Min Rx Speed)
-    private let maxRxWpmCombo = NSPopUpButton()
-    private let minRxWpmCombo = NSPopUpButton()
-
-    // ---- serial number mode (original: Settings -> Serial NR)
-    private let serialNRCombo = NSPopUpButton()
 
     // ---- entry
     private let callEntry = NSTextField(string: "")
@@ -129,26 +123,37 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         exchangeField.target = self
         exchangeField.action = #selector(exchangeEntered)
 
+        // persist immediately while typing so the call survives closing the
+        // window without Enter/losing focus (original Edit4Change -> dirty)
+        NotificationCenter.default.addObserver(
+            forName: NSControl.textDidChangeNotification, object: callField, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            _ = self.sim.setMyCall(self.callField.stringValue.uppercased())
+            Settings.saveToDefaults()
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSControl.textDidChangeNotification, object: exchangeField, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            _ = self.sim.setMyExchange(self.exchangeField.stringValue.uppercased())
+            Settings.saveToDefaults()
+        }
+
         runButton.target = self
         runButton.action = #selector(runToggled)
         modeCombo.addItems(withTitles: ["Pile-Up", "Single Calls", "COMPETITION", "H S T"])
         modeCombo.target = self
         modeCombo.action = #selector(modeChanged)
 
-        serialNRCombo.addItems(withTitles: [
-            "Serial NR: Start of Contest", "Serial NR: Mid-Contest",
-            "Serial NR: End of Contest", "Serial NR: Custom",
-        ])
-        serialNRCombo.target = self
-        serialNRCombo.action = #selector(serialNRChanged)
-        serialNRCombo.toolTip = "Serial NR mode (original Settings -> Serial NR); Custom asks for a range"
+        callField.widthAnchor.constraint(equalToConstant: 110).isActive = true
+        exchangeField.widthAnchor.constraint(equalToConstant: 140).isActive = true
 
         let row0 = NSStackView(views: [
             label("Contest"), contestCombo,
             label("Call"), callField,
             label("Exch"), exchangeField,
             runButton, modeCombo,
-            serialNRCombo,
         ])
         row0.orientation = .horizontal
         row0.spacing = 6
@@ -166,32 +171,17 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         for b in stride(from: 100, through: 1000, by: 50) {
             bwCombo.addItem(withTitle: "\(b) Hz")
         }
-        activityField.alignment = .right
-        durationField.alignment = .right
-        durationField.target = self
-        durationField.action = #selector(durationChanged)
-
         // uppercase as-you-type for call / exchange fields
         for field in [callEntry, exch1Entry, exch2Entry] {
             field.formatter = UpperCaseFormatter()
         }
 
-        for (combo, action) in [(maxRxWpmCombo, #selector(rxWpmChanged)), (minRxWpmCombo, #selector(rxWpmChanged))] {
-            combo.addItems(withTitles: ["0", "1", "2", "4", "6", "8", "10"])
-            combo.target = self
-            combo.action = action
-        }
-        maxRxWpmCombo.toolTip = "CW Max Rx Speed (0 = same as TX speed)"
-        minRxWpmCombo.toolTip = "CW Min Rx Speed (0 = same as TX speed)"
+        wpmSlider.widthAnchor.constraint(equalToConstant: 140).isActive = true
 
         let row1 = NSStackView(views: [
             label("CW Speed"), wpmSlider, wpmLabel,
             label("Pitch"), pitchCombo,
             label("Bandwidth"), bwCombo,
-            label("Activity"), activityField,
-            label("Duration (min)"), durationField,
-            label("RxMax"), maxRxWpmCombo,
-            label("RxMin"), minRxWpmCombo,
             ritLabel,
         ])
         row1.orientation = .horizontal
@@ -207,12 +197,14 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         monitorSlider.isContinuous = true
         monitorSlider.target = self
         monitorSlider.action = #selector(monitorChanged)
+        monitorSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
         outputVolumeSlider.isContinuous = true
         outputVolumeSlider.target = self
         outputVolumeSlider.action = #selector(outputVolumeChanged)
+        outputVolumeSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
         let row2 = NSStackView(views: [
             qsbCheck, qrmCheck, qrnCheck, flutterCheck, lidsCheck,
-            label("Self Monitor"), monitorSlider,
+            label("Self Mon"), monitorSlider,
             label("Output"), outputVolumeSlider,
         ])
         row2.orientation = .horizontal
@@ -438,11 +430,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         wpmChanged()
         pitchCombo.selectItem(at: (Settings.pitch - 300) / 50)
         bwCombo.selectItem(at: (Settings.bandWidth - 100) / 50)
-        activityField.stringValue = String(Settings.activity)
-        durationField.stringValue = String(Settings.duration)
-        maxRxWpmCombo.selectItem(at: max(0, maxRxWpmCombo.indexOfItem(withTitle: String(Settings.maxRxWpm))))
-        minRxWpmCombo.selectItem(at: max(0, minRxWpmCombo.indexOfItem(withTitle: String(Settings.minRxWpm))))
-        serialNRCombo.selectItem(at: min(max(0, Settings.serialNR.rawValue), serialNRCombo.numberOfItems - 1))
+        buildSettingsMenu()
         qsbCheck.state = Settings.qsb ? .on : .off
         qrmCheck.state = Settings.qrm ? .on : .off
         qrnCheck.state = Settings.qrn ? .on : .off
@@ -606,6 +594,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             sim.setContest(contest)
             exchangeField.stringValue = sim.exchangeEdit
             updateColumns(for: contest)
+            updateSerialNRMenuEnabled()
             Settings.saveToDefaults()
         }
     }
@@ -636,7 +625,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         guard !running else { return }
         let mode = RunMode(rawValue: modeCombo.indexOfSelectedItem + 1) ?? .pileup
         if mode == .wpx || mode == .hst {
-            Settings.compDuration = Int(durationField.stringValue) ?? Settings.compDuration
+            Settings.compDuration = Settings.duration
         }
     }
 
@@ -673,26 +662,21 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     }
 
     /// Settings -> Serial NR (Start/Mid/End of Contest, Custom range).
-    @objc private func serialNRChanged() {
-        let idx = serialNRCombo.indexOfSelectedItem
-        guard let mode = SerialNRType(rawValue: idx) else { return }
+    @objc private func serialNRMenuItemSelected(_ sender: NSMenuItem) {
+        guard let mode = SerialNRType(rawValue: sender.tag) else { return }
         if mode == .customRange {
             let current = Settings.serialNRSettings[.customRange]?.rangeStr ?? "01-99"
-            guard let newRange = promptForCustomRange(current: current) else {
-                // restore previous selection
-                serialNRCombo.selectItem(at: Settings.serialNR.rawValue)
-                return
-            }
+            guard let newRange = promptForCustomRange(current: current) else { return }
             if let parsed = Settings.serialNRSettings[.customRange],
                let s = parseRange(newRange, into: parsed) {
                 Settings.serialNRSettings[.customRange] = s
             } else {
-                serialNRCombo.selectItem(at: Settings.serialNR.rawValue)
                 return
             }
         }
         Settings.serialNR = mode
         Contest.shared?.serialNrModeChanged()
+        updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
         Settings.saveToDefaults()
     }
 
@@ -723,22 +707,28 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         return field.stringValue.trimmingCharacters(in: .whitespaces)
     }
 
-    /// Run duration in minutes (original SpinEdit2 / Settings -> Duration).
-    @objc private func durationChanged() {
-        if let v = Int(durationField.stringValue) {
-            Settings.duration = max(1, min(180, v))
-            durationField.stringValue = String(Settings.duration)
-            Settings.saveToDefaults()
-        }
+    /// Settings -> Duration (original menu 5/10/15/30/60 min).
+    @objc private func durationMenuItemSelected(_ sender: NSMenuItem) {
+        Settings.duration = max(1, min(180, sender.tag))
+        updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
+        Settings.saveToDefaults()
     }
 
     /// Settings -> CW Max/Min Rx Speed (original menu options 0,1,2,4,6,8,10).
-    @objc private func rxWpmChanged() {
-        let items = [0, 1, 2, 4, 6, 8, 10]
-        let idxMax = maxRxWpmCombo.indexOfSelectedItem
-        let idxMin = minRxWpmCombo.indexOfSelectedItem
-        if items.indices.contains(idxMax) { Settings.maxRxWpm = items[idxMax] }
-        if items.indices.contains(idxMin) { Settings.minRxWpm = items[idxMin] }
+    @objc private func rxSpeedMenuItemSelected(_ sender: NSMenuItem) {
+        if sender.menu?.title == "CW Max Rx Speed" {
+            Settings.maxRxWpm = sender.tag
+        } else {
+            Settings.minRxWpm = sender.tag
+        }
+        updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
+        Settings.saveToDefaults()
+    }
+
+    /// Settings -> Activity (1..9).
+    @objc private func activityMenuItemSelected(_ sender: NSMenuItem) {
+        Settings.activity = max(1, min(9, sender.tag))
+        updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
         Settings.saveToDefaults()
     }
 
@@ -774,6 +764,74 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
 
     @objc private func conditionCheckChanged() {
         conditionChanged()
+    }
+
+    /// Build the Settings menu (Activity/Duration/CW Rx speeds/Serial NR),
+    /// mirroring the original menu-driven layout and keeping the main window
+    /// clean. Serial NR is only enabled for contests that use serial numbers.
+    private func buildSettingsMenu() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+        let settingsItem = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
+        let settingsMenu = NSMenu(title: "Settings")
+        settingsItem.submenu = settingsMenu
+
+        func addChoices(_ title: String, values: [Int], action: Selector, selected: Int) {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let sub = NSMenu(title: title)
+            for v in values {
+                let mi = NSMenuItem(title: "\(v)", action: action, keyEquivalent: "")
+                mi.tag = v
+                mi.target = self
+                mi.state = v == selected ? .on : .off
+                sub.addItem(mi)
+            }
+            item.submenu = sub
+            settingsMenu.addItem(item)
+        }
+
+        addChoices("Activity", values: Array(1...9),
+                   action: #selector(activityMenuItemSelected(_:)), selected: Settings.activity)
+        addChoices("Duration (min)", values: [5, 10, 15, 30, 60],
+                   action: #selector(durationMenuItemSelected(_:)), selected: Settings.duration)
+        addChoices("CW Max Rx Speed", values: [0, 1, 2, 4, 6, 8, 10],
+                   action: #selector(rxSpeedMenuItemSelected(_:)), selected: Settings.maxRxWpm)
+        addChoices("CW Min Rx Speed", values: [0, 1, 2, 4, 6, 8, 10],
+                   action: #selector(rxSpeedMenuItemSelected(_:)), selected: Settings.minRxWpm)
+
+        // Serial NR
+        let serialItem = NSMenuItem(title: "Serial NR", action: nil, keyEquivalent: "")
+        let serialMenu = NSMenu(title: "Serial NR")
+        let serialTitles = ["Start of Contest", "Mid-Contest", "End of Contest", "Custom Range..."]
+        for (i, title) in serialTitles.enumerated() {
+            let mi = NSMenuItem(title: title, action: #selector(serialNRMenuItemSelected(_:)), keyEquivalent: "")
+            mi.tag = i
+            mi.target = self
+            mi.state = i == Settings.serialNR.rawValue ? .on : .off
+            serialMenu.addItem(mi)
+            serialNRMenuItems.append(mi)
+        }
+        serialItem.submenu = serialMenu
+        settingsMenu.addItem(serialItem)
+
+        // insert Settings before the Window menu (last item)
+        mainMenu.insertItem(settingsItem, at: max(1, mainMenu.items.count - 1))
+        updateSerialNRMenuEnabled()
+    }
+
+    private func updateMenuCheckmarks(_ menu: NSMenu?, selectedTag: Int) {
+        for item in menu?.items ?? [] {
+            item.state = item.tag == selectedTag ? .on : .off
+        }
+    }
+
+    /// Serial NR only applies to contests whose Exch2 is a serial number
+    /// (CQ WPX, HST). For CQ WW (CQ zone) etc. the menu is disabled.
+    private func updateSerialNRMenuEnabled() {
+        let enabled = Settings.activeContest.exchType2 == .serialNr
+        for item in serialNRMenuItems {
+            item.isEnabled = enabled
+            item.state = item.tag == Settings.serialNR.rawValue ? .on : .off
+        }
     }
 
     private func updateRitLabel() {

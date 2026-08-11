@@ -283,7 +283,9 @@ final class MorseRunnerCoreTests: XCTestCase {
 
         let sim = SimController.shared
         // simulate the UI onAdvance hook (fills RST=599 and focuses Exch2)
+        var advanceCount = 0
         SimEngine.shared.uiHooks.onAdvance = {
+            advanceCount += 1
             if sim.enteredExch1.isEmpty && SimEngine.shared.uiHooks.recvExchTypes.exch1 == .rst {
                 sim.enteredExch1 = "599"
             }
@@ -312,9 +314,21 @@ final class MorseRunnerCoreTests: XCTestCase {
         // call -> Enter: sends his call + nr, then advances (fills RST)
         sim.enteredCall = dxCall
         sim.enterKeyPressed()
+        // MustAdvance fires at the next envelope end (original behavior), so
+        // drive a few blocks before checking the RST auto-fill.
+        for _ in 0..<200 { _ = contest.getAudio() }
         XCTAssertEqual(sim.enteredExch1, "599", "RST should be auto-filled by onAdvance")
         XCTAssertTrue(Log.shared.callSent, "Call should be sent")
         XCTAssertTrue(Log.shared.nrSent, "NR should be sent")
+
+        // typing a callsign must not trigger advance/fill (no MustAdvance)
+        SimEngine.shared.mustAdvance = false
+        sim.enteredCall = "K1ABC"
+        let advancesBeforeTyping = advanceCount
+        for _ in 0..<200 { _ = contest.getAudio() }
+        XCTAssertEqual(advanceCount, advancesBeforeTyping,
+                       "typing a call must not trigger the advance/focus jump")
+        sim.enteredCall = dxCall
 
         // exchange -> Enter: sends TU and saves the QSO
         sim.enteredExch2 = "123"
@@ -358,6 +372,18 @@ final class MorseRunnerCoreTests: XCTestCase {
         print("VERIFIED: pts=\(Log.shared.verifiedPoints) mults=\(Log.shared.verifiedMultList.count)")
         XCTAssertEqual(Log.shared.verifiedPoints, 1, "Only the clean QSO counts in verified score")
         XCTAssertEqual(Log.shared.verifiedMultList.count, 1, "Only the clean QSO's mult counts")
+    }
+
+    /// Settings persistence: my call written to defaults must come back on load.
+    func testCallPersistence() {
+        let original = Settings.call
+        Settings.call = "XX9ZZ"
+        Settings.saveToDefaults()
+        Settings.call = "VE3NEA"
+        Settings.loadFromDefaults()
+        XCTAssertEqual(Settings.call, "XX9ZZ", "call should persist across load")
+        Settings.call = original
+        Settings.saveToDefaults()
     }
 
     func testSingleCallsMode() {

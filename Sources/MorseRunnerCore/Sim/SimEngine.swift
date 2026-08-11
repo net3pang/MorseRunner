@@ -91,5 +91,11 @@ public final class SimEngine {
     /// Called by the UI when the simulation should stop (FStopPressed).
     nonisolated(unsafe) var stopRequested = false
 
+    /// Port of MainForm.MustAdvance: the entry focus should advance to the
+    /// exchange field only right after the user pressed Enter on a call,
+    /// not on every transmitted envelope (original MyStn.GetBlock checks
+    /// `if MainForm.MustAdvance then MainForm.Advance`).
+    nonisolated(unsafe) var mustAdvance = false
+
     private init() {}
 }
