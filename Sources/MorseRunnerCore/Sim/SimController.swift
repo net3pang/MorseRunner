@@ -115,7 +115,15 @@ public final class SimController {
     private func setMyExch1(_ value: String) {
         guard let contest = Contest.shared else { return }
         switch contest.me.sentExchTypes.exch1 {
-        case .rst: contest.me.rst = Int(value) ?? 0
+        case .rst:
+            // Original SetMyExch1(etRST): expand cut numbers (E->5, N->9)
+            // into Me.RST and also store the literal into Me.Exch1, so
+            // contests like CQ WW send "5NN 3" instead of the stale "3A OR".
+            let s = value.uppercased()
+                .replacingOccurrences(of: "E", with: "5")
+                .replacingOccurrences(of: "N", with: "9")
+            contest.me.rst = Int(s) ?? 0
+            contest.me.exch1 = value
         case .opName: contest.me.opName = value
         case .fdClass: contest.me.exch1 = value
         case .ssNrPrecedence:

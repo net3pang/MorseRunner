@@ -259,17 +259,21 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
 
         // ---- row 4: score table + summary
-        logTable.addTableColumn(makeColumn("UTC", width: 70))
-        logTable.addTableColumn(makeColumn("Call", width: 90))
-        logTable.addTableColumn(makeColumn("RST/Exch1", width: 70))
-        logTable.addTableColumn(makeColumn("Exch2", width: 80))
-        logTable.addTableColumn(makeColumn("Corrections", width: 110))
-        logTable.addTableColumn(makeColumn("Wpm", width: 45))
+        logTable.addTableColumn(makeColumn("UTC", width: 80))
+        logTable.addTableColumn(makeColumn("Call", width: 120))
+        logTable.addTableColumn(makeColumn("RST/Exch1", width: 90))
+        logTable.addTableColumn(makeColumn("Exch2", width: 120))
+        logTable.addTableColumn(makeColumn("Corrections", width: 160))
+        logTable.addTableColumn(makeColumn("Wpm", width: 60))
         logTable.usesAlternatingRowBackgroundColors = true
         logTable.rowHeight = 17
         logTable.allowsMultipleSelection = false
+        logTable.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         logScroll.documentView = logTable
         logScroll.hasVerticalScroller = true
+        // let the table stretch to fill the remaining window width
+        logScroll.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        logScroll.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         func summaryLabel(_ text: String, bold: Bool = false) -> NSTextField {
             let l = NSTextField(labelWithString: text)
@@ -318,7 +322,6 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             logScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 260),
             logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            logScroll.widthAnchor.constraint(equalTo: stack.widthAnchor, multiplier: 1.0),
             tableRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         vc.view = root

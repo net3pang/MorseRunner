@@ -443,6 +443,122 @@ final class MorseRunnerCoreTests: XCTestCase {
         }
     }
 
+    /// End-to-end WPX: two consecutive QSOs through the real entry flow must
+    /// send serial 001 then 002 (increment after each saved QSO).
+    func testWpxEndToEndSerialIncrement() {
+        Settings.simContest = .wpx
+        Settings.call = "VE3NEA"
+        Settings.serialNR = .startContest
+        Settings.activity = 2
+        Settings.duration = 30
+        Settings.qsb = false
+        Settings.qrm = false
+        Settings.qrn = false
+        Settings.debugCwDecoder = false
+        Settings.runMode = .pileup
+        Log.shared.clear()
+
+        let contest = CqWpx()
+        Contest.shared = contest
+        contest.initContest()
+        contest.me.myCall = "VE3NEA"
+        _ = contest.onSetMyCall("VE3NEA")
+        _ = contest.onContestPrepareToStart("VE3NEA", sentExchange: "5NN #")
+        contest.me.rst = 599
+        contest.me.exch1 = "5NN"
+
+        let sim = SimController.shared
+        SimEngine.shared.uiHooks.onAdvance = {
+            if sim.enteredExch1.isEmpty && SimEngine.shared.uiHooks.recvExchTypes.exch1 == .rst {
+                sim.enteredExch1 = "599"
+            }
+        }
+
+        func workOneQso(_ dxCall: String, expectedNr: Int) {
+            sim.enteredCall = dxCall
+            sim.enterKeyPressed()
+            for _ in 0..<200 { _ = contest.getAudio() }
+            XCTAssertEqual(sim.enteredExch1, "599", "RST auto-filled")
+            sim.enteredExch2 = String(expectedNr)
+            sim.enterKeyPressed()
+            for _ in 0..<100 { _ = contest.getAudio() }
+        }
+
+        // QSO 1
+        contest.me.sendMsg(.cq)
+        var dxCall = ""
+        var cqCount = 1
+        var lastCqBlock = 0
+        for blk in 0..<3000 {
+            _ = contest.getAudio()
+            if dxCall.isEmpty, let dx = contest.stations.items.first as? DxStation {
+                dxCall = dx.myCall
+            }
+            if dxCall.isEmpty && contest.me.state == .listening && contest.me.envelope == nil
+                && blk - lastCqBlock > 200 && cqCount < 4 {
+                contest.me.sendMsg(.cq)
+                cqCount += 1
+                lastCqBlock = blk
+            }
+            if !dxCall.isEmpty && blk > 400 { break }
+        }
+        XCTAssertFalse(dxCall.isEmpty, "DX station should appear")
+        workOneQso(dxCall, expectedNr: 1)
+        XCTAssertEqual(contest.me.nr, 2, "me.nr should increment after QSO1 save")
+        let sent1 = contest.me.nrAsText()
+        print("WPXE2E: after QSO1 me.nr=\(contest.me.nr) sent=\(sent1)")
+
+        // QSO 2 (new DX station)
+        sim.enteredCall = ""
+        sim.enteredExch1 = ""
+        sim.enteredExch2 = ""
+        Log.shared.callSent = false
+        Log.shared.nrSent = false
+        var dxCall2 = ""
+        for blk in 0..<2000 {
+            _ = contest.getAudio()
+            if dxCall2.isEmpty, let dx = contest.stations.items.first as? DxStation {
+                dxCall2 = dx.myCall
+            }
+            if !dxCall2.isEmpty && blk > 200 { break }
+        }
+        XCTAssertFalse(dxCall2.isEmpty, "second DX station should appear")
+        workOneQso(dxCall2, expectedNr: 2)
+        XCTAssertEqual(contest.me.nr, 3, "me.nr should increment after QSO2 save")
+        let sent2 = contest.me.nrAsText()
+        print("WPXE2E: after QSO2 me.nr=\(contest.me.nr) sent=\(sent2)")
+        XCTAssertTrue(sent2.contains("TT3") || sent2.contains("003"),
+                      "second serial should be 003 (as TT3), got \(sent2)")
+    }
+
+    /// CQ WW: my sent exchange must be RST + CQ zone (e.g. "5NN 3"),
+    /// not the stale initStation defaults ("3A OR").
+    func testCqwwSentExchange() {
+        Settings.simContest = .cqww
+        Settings.call = "VE3NEA"
+        Settings.runMode = .pileup
+        let contest = CqWW()
+        Contest.shared = contest
+        contest.initContest()
+        contest.me.myCall = "VE3NEA"
+        _ = contest.onSetMyCall("VE3NEA")
+
+        // emulate the UI: user's sent exchange "5NN 3"
+        let sim = SimController.shared
+        sim.setMyCall("VE3NEA")
+        _ = sim.setMyExchange("5NN 3")
+        print("CQWW: rst=\(contest.me.rst) exch1=\(contest.me.exch1) exch2=\(contest.me.exch2)")
+        XCTAssertEqual(contest.me.rst, 599, "5NN should expand to 599")
+        XCTAssertEqual(contest.me.exch1, "5NN", "exch1 should be the literal RST")
+        XCTAssertEqual(contest.me.exch2, "3", "exch2 should be the CQ zone")
+
+        let sent = contest.me.nrAsText()
+        print("CQWW sent=\(sent)")
+        XCTAssertTrue(sent.hasPrefix("5NN"), "CQ WW exchange should start with 5NN, got \(sent)")
+        XCTAssertTrue(sent.contains("3"), "CQ WW exchange should contain the zone, got \(sent)")
+        XCTAssertFalse(sent.contains("3A"), "must not send the stale 3A OR default")
+    }
+
     func testCallPersistence() {
         let original = Settings.call
         Settings.call = "XX9ZZ"
