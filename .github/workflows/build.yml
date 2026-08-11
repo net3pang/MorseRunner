@@ -45,12 +45,10 @@ jobs:
       - uses: actions/checkout@v4
 
       # Build only the cross-platform products; the macOS AppKit target
-      # cannot compile on Linux.
+      # cannot compile on Linux, and `swift test` builds the whole package,
+      # so engine XCTests run on the macOS job only.
       - name: Build TUI (debug)
         run: swift build --product MorseRunnerTUI
-
-      - name: Engine tests (headless)
-        run: swift test
 
       - name: Terminal UI sanity check
         run: .build/debug/MorseRunnerTUI --help

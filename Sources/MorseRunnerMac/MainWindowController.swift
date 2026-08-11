@@ -155,16 +155,21 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         NotificationCenter.default.addObserver(
             forName: NSControl.textDidChangeNotification, object: callField, queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            _ = self.sim.setMyCall(self.callField.stringValue.uppercased())
-            Settings.saveToDefaults()
+            // observers are posted on the main queue; assume the main actor
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                _ = self.sim.setMyCall(self.callField.stringValue.uppercased())
+                Settings.saveToDefaults()
+            }
         }
         NotificationCenter.default.addObserver(
             forName: NSControl.textDidChangeNotification, object: exchangeField, queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            _ = self.sim.setMyExchange(self.exchangeField.stringValue.uppercased())
-            Settings.saveToDefaults()
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                _ = self.sim.setMyExchange(self.exchangeField.stringValue.uppercased())
+                Settings.saveToDefaults()
+            }
         }
 
         runButton.target = self
