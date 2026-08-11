@@ -30,12 +30,22 @@ jobs:
       - name: Package .app
         run: ./make-app.sh
 
+      - name: Zip .app for release
+        run: ditto -c -k --sequesterRsrc --keepParent dist/MorseRunner.app MorseRunner-macOS.zip
+
       - name: Upload .app artifact
         uses: actions/upload-artifact@v4
         with:
           name: MorseRunner-macOS
           path: dist/MorseRunner.app
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: MorseRunner-macOS.zip
+          generate_release_notes: true
 
   linux:
     name: Linux (engine + terminal UI)

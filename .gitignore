@@ -18,3 +18,6 @@ DerivedData/
 # Editors
 .vscode/
 .idea/
+
+# local release package
+MorseRunner-macOS.zip
