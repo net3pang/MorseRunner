@@ -329,20 +329,21 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         scoreBox.widthAnchor.constraint(equalToConstant: 250).isActive = true
         scoreBox.setContentHuggingPriority(.required, for: .horizontal)
 
-        // ---- assemble: full-width top strip, then left column + score box
-        let leftColumn = NSStackView(views: [row1, row2, entryRow, keyRow, tableRow])
-        leftColumn.orientation = .vertical
-        leftColumn.alignment = .leading
-        leftColumn.spacing = 8
-        leftColumn.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        leftColumn.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        // ---- assemble: top strip; band/input rows + score box on one line;
+        // the QSO log table gets its own full-width row underneath.
+        let topArea = NSStackView(views: [row1, row2, entryRow, keyRow])
+        topArea.orientation = .vertical
+        topArea.alignment = .leading
+        topArea.spacing = 8
+        topArea.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        topArea.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let bodyRow = NSStackView(views: [leftColumn, scoreBox])
+        let bodyRow = NSStackView(views: [topArea, scoreBox])
         bodyRow.orientation = .horizontal
         bodyRow.spacing = 16
         bodyRow.alignment = .top
 
-        let stack = NSStackView(views: [row0, bodyRow, statusRow])
+        let stack = NSStackView(views: [row0, bodyRow, tableRow, statusRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -359,6 +360,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
             bodyRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            tableRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             statusRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             scoreBox.topAnchor.constraint(equalTo: bodyRow.topAnchor),
         ])
