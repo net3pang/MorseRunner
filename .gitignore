@@ -14,3 +14,7 @@ DerivedData/
 # Build output
 /dist/
 *.app
+
+# Editors
+.vscode/
+.idea/
