@@ -114,7 +114,7 @@ nonisolated(unsafe) public let contestDefinitions: [ContestDefinition] = [
     ContestDefinition(name: "CQ WW", key: "CQWW",
         exchType1: .rst, exchType2: .cqZone,
         exchCaptions: ["RST", "CQ-Zone"], exchFieldEditable: true,
-        exchDefault: "5NN 3", msg: "'RST <cq-zone>' (e.g. 5NN 3)"),
+        exchDefault: "5NN 24", msg: "'RST <cq-zone>' (e.g. 5NN 24)"),
     ContestDefinition(name: "ARRL DX", key: "ArrlDx",
         exchType1: .rst, exchType2: .stateProv,
         exchCaptions: ["RST", "State/Prov"], exchFieldEditable: true,
@@ -192,8 +192,8 @@ public struct SerialNumberSettings {
 /// Global settings singleton (port of Ini.pas unit-level vars).
 public enum Settings {
     // ---- Station
-    public nonisolated(unsafe) static var call = "VE3NEA"
-    public nonisolated(unsafe) static var hamName = "Alex"
+    public nonisolated(unsafe) static var call = "BH5HIE"
+    public nonisolated(unsafe) static var hamName = "BH5HIE"
     public nonisolated(unsafe) static var arrlClass = "3A"
     public nonisolated(unsafe) static var arrlSection = "GH"
     public nonisolated(unsafe) static var wpm = 25

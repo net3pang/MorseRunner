@@ -528,10 +528,15 @@ public class Contest {
             if timeExpired && !SimEngine.shared.stopRequested && shouldDrainEndSessionQso() {
                 return result
             }
-            endSessionDrainDeadlineBlock = -1
-            Settings.runMode = .stop
-            SimEngine.shared.stopRequested = false
-            SimEngine.shared.uiHooks.onRunStopped?()
+            if !SimEngine.shared.stopHandled {
+                SimEngine.shared.stopHandled = true
+                endSessionDrainDeadlineBlock = -1
+                Settings.runMode = .stop
+                SimEngine.shared.stopRequested = false
+                SimEngine.shared.uiHooks.onRunStopped?()
+            }
+            // return silence while the pump winds down
+            return result
         }
         return result
     }

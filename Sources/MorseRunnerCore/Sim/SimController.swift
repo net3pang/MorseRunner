@@ -4,7 +4,7 @@
 
 import Foundation
 
-public final class SimController {
+public final class SimController: @unchecked Sendable {
     public nonisolated(unsafe) static let shared = SimController()
 
     // ---- input state (owned by the UI via hooks, mirrored here)
@@ -240,6 +240,7 @@ public final class SimController {
         } else {
             contest.me.abortSend()
             contest.blockNumber = 0
+            SimEngine.shared.stopHandled = false
             Log.shared.clear()
             wipeBoxes()
             contest.initContest()
@@ -272,11 +273,21 @@ public final class SimController {
 
     /// Called by Contest.getAudio when the run expires or FStopPressed.
     public func handleRunStopped() {
-        audioBackend.stop()
+        // Defer the audio stop out of the audio-pump callback: calling
+        // AVAudioEngine.stop() synchronously from the fill timer can deadlock
+        // with the render thread and freeze the app at end of run. If the
+        // user already restarted, skip the stale stop.
+        DispatchQueue.main.async { [weak self] in
+            guard Settings.runMode == .stop else { return }
+            self?.audioBackend.stop()
+        }
         SimEngine.shared.uiHooks.onRunState?(.stop)
-        // end-of-run score dialog for competition modes
+        // end-of-run score dialog for competition modes (also off the pump
+        // callback so the modal loop cannot be starved)
         if Settings.simContest == .wpx || Settings.simContest == .hst {
-            SimEngine.shared.uiHooks.onShowScore?()
+            DispatchQueue.main.async {
+                SimEngine.shared.uiHooks.onShowScore?()
+            }
         }
     }
 

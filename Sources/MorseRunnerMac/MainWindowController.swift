@@ -480,10 +480,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         SimEngine.shared.uiHooks.onHstScore = { [weak self] score in
             self?.hstScoreLabel.stringValue = "HST Score: \(score)"
         }
-        SimEngine.shared.uiHooks.onUserNameChange = { [weak self] name in
-            self?.window?.title = name.isEmpty
-                ? "Morse Runner for macOS"
-                : "Morse Runner for macOS — \(name)"
+        SimEngine.shared.uiHooks.onUserNameChange = { [weak self] _ in
+            self?.window?.title = "Morse Runner for macOS"
         }
         SimEngine.shared.uiHooks.onShowScore = { [weak self] in
             self?.showScoreDialog()

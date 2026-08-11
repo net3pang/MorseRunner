@@ -142,7 +142,9 @@ final class MorseRunnerCoreTests: XCTestCase {
         stn.sentExchTypes = ExchTypes(exch1: .rst, exch2: .serialNr)
         Settings.runMode = .pileup
         let txt = stn.nrAsText()
-        check(txt.contains("5NN"), "NrAsText: RST rendered as cut numbers (\(txt))")
+        // DX stations render 599 as 5NN (or rarely ENN) cut numbers
+        check(txt.contains("NN") && txt.contains("123"),
+              "NrAsText: RST rendered as cut numbers (\(txt))")
 
         // ---- 9. Serial NR generator distribution
         let gen = SerialNRGen()
@@ -613,11 +615,42 @@ final class MorseRunnerCoreTests: XCTestCase {
         let sim = SimController.shared
         sim.setContest(.cqww)
         print("CQWWDEF: exchangeEdit=\(sim.exchangeEdit)")
-        XCTAssertEqual(sim.exchangeEdit, "5NN 3", "CQ WW default exchange should be '5NN 3'")
+        XCTAssertEqual(sim.exchangeEdit, "5NN 24", "CQ WW default exchange should be '5NN 24'")
         var tokens: [String] = []
-        let err = Contest.shared?.validateMyExchange("5NN 3", tokens: &tokens)
-        XCTAssertNil(err, "5NN 3 should validate for CQ WW")
+        let err = Contest.shared?.validateMyExchange("5NN 24", tokens: &tokens)
+        XCTAssertNil(err, "5NN 24 should validate for CQ WW")
         sim.stop()
+    }
+
+    /// End-of-run: onRunStopped must fire exactly once and the pump returns
+    /// silence afterwards (regression for the end-of-run app freeze).
+    func testRunExpiryHandledOnce() {
+        Settings.simContest = .wpx
+        Settings.call = "BH5HIE"
+        Settings.runMode = .pileup
+        Settings.duration = 1
+        Settings.activity = 0
+        Settings.qsb = false
+        Settings.qrm = false
+        Settings.qrn = false
+        let contest = CqWpx()
+        Contest.shared = contest
+        contest.initContest()
+        SimEngine.shared.stopHandled = false
+
+        var stoppedCount = 0
+        SimEngine.shared.uiHooks.onRunStopped = { stoppedCount += 1 }
+        for _ in 0..<6000 {
+            _ = contest.getAudio()
+            if SimEngine.shared.stopHandled { break }
+        }
+        XCTAssertTrue(SimEngine.shared.stopHandled, "run should have ended")
+        XCTAssertEqual(stoppedCount, 1, "onRunStopped should fire exactly once")
+        // further blocks must stay silent and not re-fire the handler
+        for _ in 0..<100 { _ = contest.getAudio() }
+        XCTAssertEqual(stoppedCount, 1, "no repeated onRunStopped after expiry")
+        SimEngine.shared.uiHooks.onRunStopped = nil
+        print("RUNEXP: handled=\(SimEngine.shared.stopHandled) fires=\(stoppedCount)")
     }
 
     func testCallPersistence() {

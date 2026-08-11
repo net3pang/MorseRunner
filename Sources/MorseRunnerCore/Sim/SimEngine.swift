@@ -99,5 +99,9 @@ public final class SimEngine {
     /// `if MainForm.MustAdvance then MainForm.Advance`).
     nonisolated(unsafe) var mustAdvance = false
 
+    /// Guards the end-of-run handling so it fires only once while the audio
+    /// pump winds down asynchronously.
+    nonisolated(unsafe) var stopHandled = false
+
     private init() {}
 }
