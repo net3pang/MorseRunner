@@ -21,3 +21,6 @@ DerivedData/
 
 # local release package
 MorseRunner-macOS.zip
+
+# Codex runtime
+.omo/
