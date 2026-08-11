@@ -33,7 +33,9 @@ private final class UpperCaseFormatter: Formatter {
     }
 }
 
-public final class MainWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {    private let sim = SimController.shared
+@MainActor
+public final class MainWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
+    private let sim = SimController.shared
 
     // ---- top strip
     private let contestCombo = NSPopUpButton()

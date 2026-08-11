@@ -44,8 +44,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build (debug)
-        run: swift build
+      # Build only the cross-platform products; the macOS AppKit target
+      # cannot compile on Linux.
+      - name: Build TUI (debug)
+        run: swift build --product MorseRunnerTUI
 
       - name: Engine tests (headless)
         run: swift test

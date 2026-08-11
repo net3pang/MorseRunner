@@ -1,6 +1,7 @@
 import AppKit
 import MorseRunnerCore
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: MainWindowController?
 
