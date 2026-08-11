@@ -241,6 +241,7 @@ public final class SimController: @unchecked Sendable {
             contest.me.abortSend()
             contest.blockNumber = 0
             SimEngine.shared.stopHandled = false
+            SimEngine.shared.runExpired = false
             Log.shared.clear()
             wipeBoxes()
             contest.initContest()
@@ -282,9 +283,13 @@ public final class SimController: @unchecked Sendable {
             self?.audioBackend.stop()
         }
         SimEngine.shared.uiHooks.onRunState?(.stop)
-        // end-of-run score dialog for competition modes (also off the pump
-        // callback so the modal loop cannot be starved)
-        if Settings.simContest == .wpx || Settings.simContest == .hst {
+        // End-of-run score dialog, matching the original:
+        //   HST always; WPX only when the time limit expired (not on manual
+        //   Stop); all other contests (CQ WW etc.) never.
+        // (also off the pump callback so the modal loop cannot be starved)
+        let showScore = Settings.simContest == .hst
+            || (Settings.simContest == .wpx && SimEngine.shared.runExpired)
+        if showScore {
             DispatchQueue.main.async {
                 SimEngine.shared.uiHooks.onShowScore?()
             }

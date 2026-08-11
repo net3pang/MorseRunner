@@ -103,5 +103,10 @@ public final class SimEngine {
     /// pump winds down asynchronously.
     nonisolated(unsafe) var stopHandled = false
 
+    /// True when the run ended because the time limit expired (not because
+    /// the user pressed Stop). Original: WPX shows its score dialog only on
+    /// time expiry.
+    nonisolated(unsafe) var runExpired = false
+
     private init() {}
 }

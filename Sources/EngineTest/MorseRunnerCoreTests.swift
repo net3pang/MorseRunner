@@ -645,6 +645,7 @@ final class MorseRunnerCoreTests: XCTestCase {
             if SimEngine.shared.stopHandled { break }
         }
         XCTAssertTrue(SimEngine.shared.stopHandled, "run should have ended")
+        XCTAssertTrue(SimEngine.shared.runExpired, "time-limit expiry should set runExpired")
         XCTAssertEqual(stoppedCount, 1, "onRunStopped should fire exactly once")
         // further blocks must stay silent and not re-fire the handler
         for _ in 0..<100 { _ = contest.getAudio() }

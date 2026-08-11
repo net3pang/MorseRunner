@@ -530,6 +530,9 @@ public class Contest {
             }
             if !SimEngine.shared.stopHandled {
                 SimEngine.shared.stopHandled = true
+                if timeExpired && !SimEngine.shared.stopRequested {
+                    SimEngine.shared.runExpired = true
+                }
                 endSessionDrainDeadlineBlock = -1
                 Settings.runMode = .stop
                 SimEngine.shared.stopRequested = false
