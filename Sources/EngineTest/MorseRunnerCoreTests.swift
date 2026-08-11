@@ -375,6 +375,74 @@ final class MorseRunnerCoreTests: XCTestCase {
     }
 
     /// Settings persistence: my call written to defaults must come back on load.
+    /// WPX serial numbers: start at 001 and increment after each saved QSO.
+    func testWpxSerialNumberIncrements() {
+        Settings.serialNR = .startContest
+        Settings.simContest = .wpx
+        Settings.call = "VE3NEA"
+        Settings.runMode = .pileup
+        let contest = CqWpx()
+        Contest.shared = contest
+        contest.initContest()
+        contest.me.myCall = "VE3NEA"
+        _ = contest.onSetMyCall("VE3NEA")
+
+        // prepare like SimController.run does
+        _ = contest.onContestPrepareToStart("VE3NEA", sentExchange: "5NN #")
+        print("WPNR: init me.nr=\(contest.me.nr)")
+        XCTAssertEqual(contest.me.nr, 1, "start-of-contest '#' exchange starts at 001")
+        contest.me.rst = 599
+
+        // QSO 1: send exchange then save (0 -> T is cut-number formatting)
+        let first = contest.me.nrAsText()
+        XCTAssertTrue(first.contains("TT1"), "first serial should be 001 (as TT1), got \(first)")
+        Log.shared.clear()
+        Log.shared.saveQso(call: "K7OK", exch1: "599", exch2: "1")
+        print("WPNR: after save1 me.nr=\(contest.me.nr)")
+
+        // QSO 2
+        let second = contest.me.nrAsText()
+        XCTAssertTrue(second.contains("TT2"), "second serial should be 002 (as TT2), got \(second)")
+        Log.shared.saveQso(call: "W1AW", exch1: "599", exch2: "2")
+        let third = contest.me.nrAsText()
+        XCTAssertTrue(third.contains("TT3"), "third serial should be 003 (as TT3), got \(third)")
+        print("WPNR: first=\(first) second=\(second) third=\(third)")
+    }
+
+    /// QSO errors must be recomputed and pushed to the UI when the DX
+    /// station data arrives (original ScoreTableUpdateCheck).
+    func testQsoErrorMarkingRefreshesRow() {
+        Settings.simContest = .wpx
+        Settings.call = "VE3NEA"
+        Settings.runMode = .pileup
+        let contest = CqWpx()
+        Contest.shared = contest
+        contest.initContest()
+        contest.me.myCall = "VE3NEA"
+        _ = contest.onSetMyCall("VE3NEA")
+        Log.shared.clear()
+
+        var updated: (Int, ScoreTableRow)?
+        SimEngine.shared.uiHooks.onScoreTableUpdate = { idx, row in
+            updated = (idx, row)
+        }
+
+        // save a QSO whose call does NOT match the DX station (wrong call)
+        let qso = Qso()
+        qso.call = "K7OK"
+        qso.exch1 = "599"
+        qso.exch2 = "1"
+        Log.shared.qsoList = [qso]
+        Log.shared.checkErr()
+        XCTAssertNotNil(updated, "checkErr should refresh the last row")
+        if let (idx, row) = updated {
+            XCTAssertEqual(idx, 0, "should update row 0")
+            let errCol = row.columns.count > 4 ? row.columns[4] : ""
+            print("QSOERR: errCol=\(errCol)")
+            XCTAssertFalse(errCol.isEmpty || errCol == "   ", "wrong call should be marked, got '\(errCol)'")
+        }
+    }
+
     func testCallPersistence() {
         let original = Settings.call
         Settings.call = "XX9ZZ"

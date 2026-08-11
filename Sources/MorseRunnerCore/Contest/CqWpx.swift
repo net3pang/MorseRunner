@@ -103,11 +103,9 @@ final class CqWpx: Contest {
     /// random starting NR).
     override func onContestPrepareToStart(_ userCallsign: String, sentExchange: String) -> Bool {
         initSerialNRGen()
-        let result = super.onContestPrepareToStart(userCallsign, sentExchange: sentExchange)
-        if result {
-            me.nr = getRandomSerialNR()
-        }
-        return result
+        // Me.NR is set from the user's exchange field (SetMyExch2); no random
+        // override here (original calls MainForm.SetMySerialNR -> SetMyExch2).
+        return super.onContestPrepareToStart(userCallsign, sentExchange: sentExchange)
     }
 
     override func serialNrModeChanged() {

@@ -40,6 +40,8 @@ public struct UIHooks {
     // ---- display updates
     /// Add a row to the score table (Log.ScoreTableInsert).
     public var onScoreTableInsert: ((ScoreTableRow) -> Void)?
+    /// Update an existing row (used when QSO errors are (re)computed).
+    public var onScoreTableUpdate: ((Int, ScoreTableRow) -> Void)?
     /// Update the score summary (Log.UpdateStats).
     public var onStatsUpdate: ((ScoreSummary) -> Void)?
     /// Update the rate label, qso/hr (Log.ShowRate).

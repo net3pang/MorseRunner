@@ -43,8 +43,16 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     private let modeCombo = NSPopUpButton()
 
     // ---- band strip
-    private let wpmSlider = NSSlider(value: 25, minValue: 10, maxValue: 120, target: nil, action: nil)
-    private let wpmLabel = NSTextField(labelWithString: "25 wpm")
+    private let wpmField = NSTextField(string: "25")
+    private let wpmStepper: NSStepper = {
+        let s = NSStepper()
+        s.minValue = 10
+        s.maxValue = 120
+        s.increment = 1
+        s.integerValue = 25
+        return s
+    }()
+    private let wpmLabel = NSTextField(labelWithString: "wpm")
     private let pitchCombo = NSPopUpButton()
     private let bwCombo = NSPopUpButton()
     private let ritLabel = NSTextField(labelWithString: "RIT 0")
@@ -159,8 +167,13 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         row0.spacing = 6
 
         // ---- row 1: band strip
-        wpmSlider.target = self
-        wpmSlider.action = #selector(wpmChanged)
+        wpmField.target = self
+        wpmField.action = #selector(wpmChanged)
+        wpmField.alignment = .right
+        wpmField.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        wpmStepper.target = self
+        wpmStepper.action = #selector(wpmChanged)
+        wpmStepper.autorepeat = true
         pitchCombo.target = self
         pitchCombo.action = #selector(pitchChanged)
         for p in stride(from: 300, through: 1000, by: 50) {
@@ -176,10 +189,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             field.formatter = UpperCaseFormatter()
         }
 
-        wpmSlider.widthAnchor.constraint(equalToConstant: 140).isActive = true
-
         let row1 = NSStackView(views: [
-            label("CW Speed"), wpmSlider, wpmLabel,
+            label("CW Speed"), wpmField, wpmStepper, wpmLabel,
             label("Pitch"), pitchCombo,
             label("Bandwidth"), bwCombo,
             ritLabel,
@@ -225,7 +236,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         exch2Entry.cell?.sendsActionOnEndEditing = false
 
         let fKeys: [(String, StationMessage)] = [
-            ("F1 CQ", .cq), ("F2 NR", .nr), ("F3 TU", .tu), ("F4 MyCall", .myCall),
+            ("F1 CQ", .cq), ("F2 EXCH", .nr), ("F3 TU", .tu), ("F4 MyCall", .myCall),
             ("F5 HisCall", .hisCall), ("F6 B4", .b4), ("F7 ?", .qm), ("F8 NIL", .nil_),
         ]
         callEntry.widthAnchor.constraint(equalToConstant: 110).isActive = true
@@ -305,8 +316,10 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
             stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10),
             logScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 260),
-            logScroll.widthAnchor.constraint(equalToConstant: 560),
+            logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            logScroll.widthAnchor.constraint(equalTo: stack.widthAnchor, multiplier: 1.0),
+            tableRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         vc.view = root
         return vc
@@ -339,6 +352,12 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             if let n = self?.logRows.count, n > 0 {
                 self?.logTable.scrollRowToVisible(n - 1)
             }
+        }
+        SimEngine.shared.uiHooks.onScoreTableUpdate = { [weak self] index, row in
+            guard let self, self.logRows.indices.contains(index) else { return }
+            self.logRows[index] = row
+            self.logTable.reloadData(forRowIndexes: IndexSet(integer: index),
+                                     columnIndexes: IndexSet(integersIn: 0..<self.logTable.tableColumns.count))
         }
         SimEngine.shared.uiHooks.onStatsUpdate = { [weak self] s in
             self?.rawPtsLabel.stringValue = "Pts: \(s.points)"
@@ -393,6 +412,11 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             let names = ["", "Pile-Up", "Single Calls", "COMPETITION", "H S T"]
             self?.modeLabel.stringValue = mode == .stop ? "" : names[mode.rawValue]
             self?.modeLabel.textColor = (mode == .wpx || mode == .hst) ? .systemRed : .systemGreen
+            if mode != .stop {
+                // fresh run: clear the score table
+                self?.logRows = []
+                self?.logTable.reloadData()
+            }
         }
         SimEngine.shared.uiHooks.onHstScore = { [weak self] score in
             self?.hstScoreLabel.stringValue = "HST Score: \(score)"
@@ -426,7 +450,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         contestCombo.selectItem(at: Settings.simContest.rawValue)
         callField.stringValue = Settings.call
         exchangeField.stringValue = sim.exchangeEdit
-        wpmSlider.doubleValue = Double(Settings.wpm)
+        wpmField.stringValue = String(Settings.wpm)
+        wpmStepper.integerValue = Settings.wpm
         wpmChanged()
         pitchCombo.selectItem(at: (Settings.pitch - 300) / 50)
         bwCombo.selectItem(at: (Settings.bandWidth - 100) / 50)
@@ -548,7 +573,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
 
     private func changeSpeed(_ delta: Int) {
         let wpm = max(10, min(120, Settings.wpm + delta * Settings.wpmStepRate))
-        wpmSlider.doubleValue = Double(wpm)
+        wpmStepper.integerValue = wpm
         wpmChanged()
     }
 
@@ -630,7 +655,9 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     }
 
     @objc private func wpmChanged() {
-        let wpm = Int(wpmSlider.doubleValue.rounded())
+        let wpm = max(10, min(120, wpmStepper.integerValue))
+        wpmField.stringValue = String(wpm)
+        wpmStepper.integerValue = wpm
         wpmLabel.stringValue = "\(wpm) wpm"
         sim.setWpm(wpm)
     }

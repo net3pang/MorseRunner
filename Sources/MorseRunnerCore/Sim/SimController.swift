@@ -135,7 +135,25 @@ public final class SimController {
     private func setMyExch2(_ value: String) {
         guard let contest = Contest.shared else { return }
         switch contest.me.sentExchTypes.exch2 {
-        case .serialNr: contest.me.nr = Int(value) ?? 0
+        case .serialNr:
+            // Original SetMyExch2(etSerialNr): expand cut numbers, then
+            //   HST            -> 1
+            //   '#' + Mid/End  -> random decade
+            //   numeric        -> that value
+            //   otherwise      -> 1   ('#' + Start of Contest starts at 001)
+            let s = value.uppercased()
+                .replacingOccurrences(of: "T", with: "0")
+                .replacingOccurrences(of: "O", with: "0")
+                .replacingOccurrences(of: "N", with: "9")
+            if Settings.simContest == .hst {
+                contest.me.nr = 1
+            } else if s.contains("#") && [SerialNRType.midContest, .endContest].contains(Settings.serialNR) {
+                contest.me.nr = 1 + (contest.getRandomSerialNR() / 10) * 10
+            } else if let v = Int(s) {
+                contest.me.nr = v
+            } else {
+                contest.me.nr = 1
+            }
         case .genericField, .arrlSection, .stateProv, .cqZone, .ituZone,
              .power, .jaPref, .jaCity, .naQpExch2, .naQpNonNaExch2:
             contest.me.exch2 = value
@@ -215,6 +233,9 @@ public final class SimController {
             Log.shared.clear()
             wipeBoxes()
             contest.initContest()
+            // re-apply my exchange so Me.NR follows the user's exchange field
+            // (original Run keeps the value set by OnContestPrepareToStart)
+            _ = setMyExchange(exchangeEdit)
             Log.shared.updateStats(verifyResults: false)
             // competition modes force all conditions on (WPX) or off (HST)
             if value == .wpx {

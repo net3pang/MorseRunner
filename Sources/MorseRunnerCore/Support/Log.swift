@@ -436,6 +436,7 @@ public final class Log {
         if qso.err.isEmpty {
             qso.err = "   "
         }
+        refreshLastRow()
     }
 
     /// Port of `Log.ShowCorrections` (correction column for all but HST).
@@ -447,6 +448,11 @@ public final class Log {
 
     public func lastQsoToScreen() {
         guard let qso = qsoList.last else { return }
+        SimEngine.shared.uiHooks.onScoreTableInsert?(scoreTableRow(for: qso))
+    }
+
+    /// Build one score-table row (original Log.ScoreTableInsert columns).
+    func scoreTableRow(for qso: Qso) -> ScoreTableRow {
         let time = formatTime(qso.t)
         let cols: [String]
         switch Settings.simContest {
@@ -468,7 +474,14 @@ public final class Log {
             cols = [time, qso.call, String(format: "%4d", qso.nr), qso.prec,
                     String(format: "%02d", qso.check), qso.sect, qso.err, padLeft(qso.trueWpm, 3)]
         }
-        SimEngine.shared.uiHooks.onScoreTableInsert?(ScoreTableRow(columns: cols))
+        return ScoreTableRow(columns: cols)
+    }
+
+    /// After error checking, push the updated row back to the UI
+    /// (original ScoreTableUpdateCheck).
+    private func refreshLastRow() {
+        guard let qso = qsoList.last else { return }
+        SimEngine.shared.uiHooks.onScoreTableUpdate?(qsoList.count - 1, scoreTableRow(for: qso))
     }
 
     private func formatTime(_ t: Double) -> String {
