@@ -95,20 +95,37 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     private let statusBar = NSTextField(labelWithString: "")
 
     private var running = false
+    private var monitorSliderWidth: NSLayoutConstraint!
+    private var outputSliderWidth: NSLayoutConstraint!
+    private var row2View: NSStackView!
+    private var keyRowView: NSStackView!
+
+    /// Balance the two volume sliders so they are equal in width and the row
+    /// ends on the same vertical line as the F1-F8 key row. Measured at
+    /// runtime (NSStackView-to-NSStackView equal-width constraints deadlock).
+    private func balanceSliders() {
+        let keyWidth = keyRowView.fittingSize.width
+        let rowWidth = row2View.fittingSize.width
+        let fixedWidth = rowWidth - monitorSliderWidth.constant - outputSliderWidth.constant
+        let sliderWidth = max(70, (keyWidth - fixedWidth) / 2)
+        monitorSliderWidth.constant = sliderWidth
+        outputSliderWidth.constant = sliderWidth
+    }
 
     public convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1190, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 950, height: 620),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false)
         window.title = "Morse Runner for macOS"
-        window.minSize = NSSize(width: 1060, height: 560)
+        window.minSize = NSSize(width: 880, height: 560)
         window.center()
         window.setFrameAutosaveName("MainWindow")
         self.init(window: window)
         window.contentViewController = buildContent()
         setup()
+        balanceSliders()
     }
 
     // MARK: - layout
@@ -208,20 +225,20 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         monitorSlider.isContinuous = true
         monitorSlider.target = self
         monitorSlider.action = #selector(monitorChanged)
-        monitorSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        monitorSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        monitorSliderWidth = monitorSlider.widthAnchor.constraint(equalToConstant: 80)
+        monitorSliderWidth.isActive = true
         outputVolumeSlider.isContinuous = true
         outputVolumeSlider.target = self
         outputVolumeSlider.action = #selector(outputVolumeChanged)
-        outputVolumeSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        outputVolumeSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let row2 = NSStackView(views: [
+        outputSliderWidth = outputVolumeSlider.widthAnchor.constraint(equalToConstant: 80)
+        outputSliderWidth.isActive = true
+        row2View = NSStackView(views: [
             qsbCheck, qrmCheck, qrnCheck, flutterCheck, lidsCheck,
             label("Self Mon"), monitorSlider,
             label("Output"), outputVolumeSlider,
         ])
-        row2.orientation = .horizontal
-        row2.spacing = 10
+        row2View.orientation = .horizontal
+        row2View.spacing = 10
 
         // ---- row 3: QSO entry + function keys
         callEntry.placeholderString = "Call"
@@ -259,6 +276,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             b.tag = msg.rawValue
             keyRow.addArrangedSubview(b)
         }
+        keyRowView = keyRow
 
         // ---- row 4: score table + summary
         logTable.addTableColumn(makeColumn("UTC", width: 80))
@@ -333,13 +351,10 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
 
         // ---- assemble: top strip; band/input rows + score box on one line;
         // the QSO log table gets its own full-width row underneath.
-        let topArea = NSStackView(views: [row1, row2, entryRow, keyRow])
+        let topArea = NSStackView(views: [row1, row2View, entryRow, keyRow])
         topArea.orientation = .vertical
         topArea.alignment = .leading
         topArea.spacing = 8
-        // sliders row and F1-F8 row end on the same vertical line
-        row2.widthAnchor.constraint(equalTo: keyRow.widthAnchor).isActive = true
-
         let bodyRow = NSStackView(views: [topArea, scoreBox])
         bodyRow.orientation = .horizontal
         bodyRow.spacing = 16

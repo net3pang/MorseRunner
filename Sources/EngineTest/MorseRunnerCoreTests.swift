@@ -515,10 +515,18 @@ final class MorseRunnerCoreTests: XCTestCase {
         Log.shared.callSent = false
         Log.shared.nrSent = false
         var dxCall2 = ""
-        for blk in 0..<2000 {
+        var lastCq2 = 0
+        var cq2Count = 0
+        for blk in 0..<3000 {
             _ = contest.getAudio()
             if dxCall2.isEmpty, let dx = contest.stations.items.first as? DxStation {
                 dxCall2 = dx.myCall
+            }
+            if dxCall2.isEmpty && contest.me.state == .listening && contest.me.envelope == nil
+                && blk - lastCq2 > 200 && cq2Count < 4 {
+                contest.me.sendMsg(.cq)
+                cq2Count += 1
+                lastCq2 = blk
             }
             if !dxCall2.isEmpty && blk > 200 { break }
         }
