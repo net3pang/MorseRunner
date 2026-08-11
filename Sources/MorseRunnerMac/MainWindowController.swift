@@ -79,7 +79,11 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     // ---- score
     private let logTable = NSTableView()
     private let logScroll = NSScrollView()
+    private let rawPtsLabel = NSTextField(labelWithString: "")
+    private let rawMultLabel = NSTextField(labelWithString: "")
     private let rawScoreLabel = NSTextField(labelWithString: "")
+    private let verPtsLabel = NSTextField(labelWithString: "")
+    private let verMultLabel = NSTextField(labelWithString: "")
     private let verScoreLabel = NSTextField(labelWithString: "")
 
     // ---- status
@@ -153,29 +157,11 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         callField.widthAnchor.constraint(equalToConstant: 110).isActive = true
         exchangeField.widthAnchor.constraint(equalToConstant: 140).isActive = true
 
-        // compact score strip, top-right corner (no right-side column that
-        // made the window width jump)
-        for l in [rawScoreLabel, verScoreLabel, rateLabel, pileupLabel, hstScoreLabel] {
-            l.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
-        }
-        let scoreStrip = NSStackView(views: [
-            rawScoreLabel, verScoreLabel, rateLabel, pileupLabel, hstScoreLabel,
-        ])
-        scoreStrip.orientation = .horizontal
-        scoreStrip.spacing = 14
-        scoreStrip.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-
-        // spacer pushes the score strip to the right edge of row 0
-        let scoreSpacer = NSView()
-        scoreSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        scoreSpacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
         let row0 = NSStackView(views: [
             label("Contest"), contestCombo,
             label("Call"), callField,
             label("Exch"), exchangeField,
             runButton, modeCombo,
-            scoreSpacer, scoreStrip,
         ])
         row0.orientation = .horizontal
         row0.spacing = 6
@@ -299,8 +285,40 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         statusRow.orientation = .horizontal
         statusRow.spacing = 12
 
-        // ---- assemble
-        let stack = NSStackView(views: [row0, row1, row2, entryRow, keyRow, tableRow, statusRow])
+        // ---- score sidebar: traditional multi-line display on the right,
+        // fixed width so the window never jumps. It spans the same height as
+        // the rows to its left (band strip -> score table).
+        func sideLabel(_ text: String, bold: Bool = false) -> NSTextField {
+            let l = NSTextField(labelWithString: text)
+            l.font = bold ? NSFont.boldSystemFont(ofSize: 12) : NSFont.systemFont(ofSize: 12)
+            return l
+        }
+        let sidebar = NSStackView(views: [
+            sideLabel("Raw", bold: true), rawPtsLabel, rawMultLabel, rawScoreLabel,
+            sideLabel("Verified", bold: true), verPtsLabel, verMultLabel, verScoreLabel,
+            sideLabel("Rate"), rateLabel,
+            sideLabel("Pile-Up"), pileupLabel,
+            hstScoreLabel,
+        ])
+        sidebar.orientation = .vertical
+        sidebar.alignment = .leading
+        sidebar.spacing = 4
+        sidebar.widthAnchor.constraint(equalToConstant: 190).isActive = true
+        sidebar.setContentHuggingPriority(.required, for: .horizontal)
+
+        // ---- assemble: full-width top strip, then left column + right sidebar
+        let leftColumn = NSStackView(views: [row1, row2, entryRow, keyRow, tableRow])
+        leftColumn.orientation = .vertical
+        leftColumn.alignment = .leading
+        leftColumn.spacing = 8
+        leftColumn.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        let bodyRow = NSStackView(views: [leftColumn, sidebar])
+        bodyRow.orientation = .horizontal
+        bodyRow.spacing = 16
+        bodyRow.alignment = .top
+
+        let stack = NSStackView(views: [row0, bodyRow, statusRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -316,7 +334,9 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             logScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 260),
             logScroll.widthAnchor.constraint(greaterThanOrEqualToConstant: 560),
             row0.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            tableRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            bodyRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            leftColumn.widthAnchor.constraint(equalTo: bodyRow.widthAnchor),
+            sidebar.topAnchor.constraint(equalTo: bodyRow.topAnchor),
         ])
         vc.view = root
         return vc
@@ -357,17 +377,21 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
                                      columnIndexes: IndexSet(integersIn: 0..<self.logTable.tableColumns.count))
         }
         SimEngine.shared.uiHooks.onStatsUpdate = { [weak self] s in
-            self?.rawScoreLabel.stringValue = "Raw \(s.points)×\(s.mults)=\(s.points * s.mults)"
-            self?.verScoreLabel.stringValue = "Ver \(s.verifiedPoints)×\(s.verifiedMults)=\(s.verifiedPoints * s.verifiedMults)"
+            self?.rawPtsLabel.stringValue = "Pts: \(s.points)"
+            self?.rawMultLabel.stringValue = "Mult: \(s.mults)"
+            self?.rawScoreLabel.stringValue = "Score: \(s.points * s.mults)"
+            self?.verPtsLabel.stringValue = "Pts: \(s.verifiedPoints)"
+            self?.verMultLabel.stringValue = "Mult: \(s.verifiedMults)"
+            self?.verScoreLabel.stringValue = "Score: \(s.verifiedPoints * s.verifiedMults)"
         }
         SimEngine.shared.uiHooks.onRateUpdate = { [weak self] rate in
-            self?.rateLabel.stringValue = "\(rate)/hr"
+            self?.rateLabel.stringValue = "\(rate) qso/hr"
         }
         SimEngine.shared.uiHooks.onClockUpdate = { [weak self] t in
             self?.clockLabel.stringValue = t
         }
         SimEngine.shared.uiHooks.onPileupCount = { [weak self] n in
-            self?.pileupLabel.stringValue = "PU \(n)"
+            self?.pileupLabel.stringValue = "\(n)"
         }
         SimEngine.shared.uiHooks.onStatusBar = { [weak self] text, isError in
             self?.statusBar.stringValue = text
