@@ -1,5 +1,9 @@
 name: build
 
+# Allow the workflow's GITHUB_TOKEN to create Releases and upload assets.
+permissions:
+  contents: write
+
 # Build only for version tags (e.g. v1.0.0) and pull requests.
 # Pushing to main does NOT compile — releases are built from tags.
 
