@@ -559,6 +559,59 @@ final class MorseRunnerCoreTests: XCTestCase {
         XCTAssertFalse(sent.contains("3A"), "must not send the stale 3A OR default")
     }
 
+    /// setContest must apply the loaded call, not overwrite it with the
+    /// controller's stale initial value (VE3NEA).
+    func testSetContestKeepsLoadedCall() {
+        Settings.call = "XX9ZZ"
+        let sim = SimController.shared
+        sim.setContest(.wpx)
+        XCTAssertEqual(Settings.call, "XX9ZZ", "setContest must keep the loaded call")
+        sim.stop()
+    }
+
+    /// After run() (which re-inits Me), the sent exchange types must be
+    /// restored so "5NN #" validates and cut numbers are applied.
+    func testRunRestoresExchangeTypes() {
+        Settings.simContest = .wpx
+        Settings.call = "VE3NEA"
+        Settings.serialNR = .startContest
+        Settings.activity = 1
+        Settings.duration = 30
+        Settings.qsb = false
+        Settings.qrm = false
+        Settings.qrn = false
+        Log.shared.clear()
+        let sim = SimController.shared
+        sim.setContest(.wpx)
+        _ = sim.setMyExchange("5NN #")
+        sim.run(.pileup)
+        defer { sim.stop() }
+
+        let contest = Contest.shared
+        XCTAssertNotNil(contest, "contest should exist")
+        XCTAssertEqual(contest?.me.sentExchTypes.exch1, .rst, "RST exchange type restored")
+        XCTAssertEqual(contest?.me.sentExchTypes.exch2, .serialNr, "serial Nr exchange type restored")
+        contest?.me.nr = 1
+        contest?.me.rst = 599
+        let txt = contest?.me.nrAsText() ?? ""
+        print("RUNEX: sent=\(txt)")
+        XCTAssertTrue(txt.contains("5NN"), "WPX exchange should use 5NN short code, got \(txt)")
+    }
+
+    /// Switching to CQ WW must use that contest's default exchange (5NN 3),
+    /// not a stale "5NN #".
+    func testCqwwDefaultExchange() {
+        Settings.call = "VE3NEA"
+        let sim = SimController.shared
+        sim.setContest(.cqww)
+        print("CQWWDEF: exchangeEdit=\(sim.exchangeEdit)")
+        XCTAssertEqual(sim.exchangeEdit, "5NN 3", "CQ WW default exchange should be '5NN 3'")
+        var tokens: [String] = []
+        let err = Contest.shared?.validateMyExchange("5NN 3", tokens: &tokens)
+        XCTAssertNil(err, "5NN 3 should validate for CQ WW")
+        sim.stop()
+    }
+
     func testCallPersistence() {
         let original = Settings.call
         Settings.call = "XX9ZZ"

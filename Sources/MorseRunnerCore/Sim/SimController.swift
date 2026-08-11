@@ -67,7 +67,9 @@ public final class SimController {
         }
         exchangeEdit = Settings.userExchangeTbl[contestNum.rawValue].uppercased()
 
-        setMyCall(myCall.uppercased())
+        // use the loaded Settings.call (may have been read from defaults after
+        // this controller was created), not the stale initial value
+        setMyCall(Settings.call.uppercased())
         setMyExchange(exchangeEdit)
         SimEngine.shared.uiHooks.onExchangeLabel?(
             exchange2Settings[Settings.activeContest.exchType2]?.caption ?? "Exch")
@@ -241,8 +243,10 @@ public final class SimController {
             Log.shared.clear()
             wipeBoxes()
             contest.initContest()
-            // re-apply my exchange so Me.NR follows the user's exchange field
-            // (original Run keeps the value set by OnContestPrepareToStart)
+            // initContest reset Me (sentExchTypes -> undef); restore the sent
+            // exchange types and re-apply the exchange so validation passes
+            // and cut-number formatting works (original Run never re-inits Me).
+            _ = contest.onSetMyCall(Settings.call)
             _ = setMyExchange(exchangeEdit)
             Log.shared.updateStats(verifyResults: false)
             // competition modes force all conditions on (WPX) or off (HST)
