@@ -55,5 +55,6 @@ jobs:
 
       - name: Terminal UI short WAV run
         run: |
-          printf 'r\ncq\nq\n' | timeout 15 .build/debug/MorseRunnerTUI --contest 0 --duration 30 --wav /tmp/out.wav || true
+          (sleep 1; echo r; sleep 3; echo cq; sleep 5; echo q) \
+            | .build/debug/MorseRunnerTUI --contest 0 --duration 30 --wav /tmp/out.wav || true
           test -s /tmp/out.wav && file /tmp/out.wav
