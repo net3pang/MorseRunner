@@ -109,7 +109,7 @@ Sources/
 | `Support/Log.swift`、`Support/Settings.swift` | `Log.pas`、`Ini.pas` |
 | `Resources/` | 仓库根目录的数据文件 |
 
-移植约定与过程记录见 `local:/contest-conventions.md`（早期尝试的笔记）。
+移植约定与过程记录保留在开发历史中。
 
 ## 已修复的关键问题（早期 Swift 尝试的 bug）
 
