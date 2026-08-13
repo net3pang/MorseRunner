@@ -7,6 +7,8 @@
 import AppKit
 import MorseRunnerCore
 
+/// Forces text fields to uppercase as the user types (Delphi OnChange
+/// behavior for the call/exchange entry fields).
 // MARK: - TouchBar Identifiers
 extension NSTouchBarItem.Identifier {
     static let runStop   = NSTouchBarItem.Identifier("com.morserunner.runstop")
@@ -144,6 +146,9 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
     private var row2View: NSStackView!
     private var keyRowView: NSStackView!
 
+    /// Balance the two volume sliders so they are equal in width and the row
+    /// ends on the same vertical line as the F1-F8 key row. Measured at
+    /// runtime (NSStackView-to-NSStackView equal-width constraints deadlock).
     private func balanceSliders() {
         let keyWidth = keyRowView.fittingSize.width
         let rowWidth = row2View.fittingSize.width
@@ -189,9 +194,12 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         exchangeField.target = self
         exchangeField.action = #selector(exchangeEntered)
 
+        // persist immediately while typing so the call survives closing the
+        // window without Enter/losing focus (original Edit4Change -> dirty)
         NotificationCenter.default.addObserver(
             forName: NSControl.textDidChangeNotification, object: callField, queue: .main
         ) { [weak self] _ in
+            // observers are posted on the main queue; assume the main actor
             MainActor.assumeIsolated {
                 guard let self else { return }
                 _ = self.sim.setMyCall(self.callField.stringValue.uppercased())
@@ -260,6 +268,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         for b in stride(from: 100, through: 1000, by: 50) {
             bwCombo.addItem(withTitle: "\(b) Hz")
         }
+        // uppercase as-you-type for call / exchange fields
 
         let inputFormatter = CallInputFormatter()
         for field in [callEntry, exch1Entry, exch2Entry] {
@@ -354,13 +363,14 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         logTable.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         logScroll.documentView = logTable
         logScroll.hasVerticalScroller = true
+        // let the table stretch to fill the remaining window width
         logScroll.setContentHuggingPriority(.defaultLow, for: .horizontal)
         logScroll.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         let tableRow = NSStackView(views: [logScroll])
         tableRow.orientation = .horizontal
 
-        // ---- row 5: status
+        // ---- row 5: status (rate / pile-up on the right, same line as clock)
         statusBar.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         statusBar.lineBreakMode = .byTruncatingTail
         rateLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
@@ -374,7 +384,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         statusRow.orientation = .horizontal
         statusRow.spacing = 12
 
-        // ---- score box
+        // ---- score box: bordered two-column table (Raw | Verified) on the
+        // right; fixed width so the window never jumps.
         func sideLabel(_ text: String, bold: Bool = false) -> NSTextField {
             let l = NSTextField(labelWithString: text)
             l.font = bold ? NSFont.boldSystemFont(ofSize: 12) : NSFont.systemFont(ofSize: 12)
@@ -410,7 +421,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         scoreBox.widthAnchor.constraint(equalToConstant: 250).isActive = true
         scoreBox.setContentHuggingPriority(.required, for: .horizontal)
 
-        // ---- assemble layout
+        // ---- assemble layout: top strip; band/input rows + score box on one line;
+        // the QSO log table gets its own full-width row underneath.
         let topArea = NSStackView(views: [row1, row2View, entryRow, keyRow])
         topArea.orientation = .vertical
         topArea.alignment = .leading
@@ -464,6 +476,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         SimEngine.shared.uiHooks.userName = Settings.hamName
         SimEngine.shared.uiHooks.volume = Float(monitorSlider.doubleValue)
 
+        // engine -> UI hooks
         SimEngine.shared.uiHooks.onScoreTableInsert = { [weak self] row in
             self?.logRows.append(row)
             self?.logTable.reloadData()
@@ -516,6 +529,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
         SimEngine.shared.uiHooks.onAdvance = { [weak self] in
             guard let self else { return }
+            // original Advance(): auto-fill 599 when the received Exch1 is RST
             let types = SimEngine.shared.uiHooks.recvExchTypes
             if types.exch1 == .rst && Settings.runMode != .hst && self.exch1Entry.stringValue.isEmpty {
                 self.exch1Entry.stringValue = "599"
@@ -531,10 +545,11 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             self.modeLabel.stringValue = mode == .stop ? "" : names[mode.rawValue]
             self.modeLabel.textColor = (mode == .wpx || mode == .hst) ? .systemRed : .systemGreen
             
-            // 刷新 Touch Bar（更新按钮文本和颜色）
+            // Refresh Touch Bar
             self.touchBar = nil
             
             if mode != .stop {
+                // fresh run: clear the score table
                 self.logRows = []
                 self.logTable.reloadData()
             }
@@ -549,10 +564,13 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             self?.showScoreDialog()
         }
 
+        // the engine requests a stop (run expired / FStopPressed)
         SimEngine.shared.uiHooks.onRunStopped = { [weak self] in
             self?.sim.handleRunStopped()
         }
 
+        // debug CW stream to the status bar — only when the debug option is
+        // enabled (original: "if BDebugCwDecoder and not (self is TQrmStation)").
         SimEngine.shared.debugCwStream = { [weak self] text in
             guard Settings.debugCwDecoder else { return }
             Log.shared.sbarUpdateDebugMsg(text)
@@ -561,6 +579,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             self?.statusBar.stringValue = (text + "; " + (self?.statusBar.stringValue ?? "")).prefix(80).description
         }
 
+        // initial contest + widgets
         sim.setContest(Settings.simContest)
         contestCombo.selectItem(at: Settings.simContest.rawValue)
         callField.stringValue = Settings.call
@@ -585,13 +604,19 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         installKeyMonitor()
     }
 
+    /// Copy the entry fields into the controller before sending a message,
+    /// so HisCall uses the call currently being typed (not the previous QSO).
     private func syncEntryFields() {
         sim.enteredCall = callEntry.stringValue.uppercased()
         sim.enteredExch1 = exch1Entry.stringValue.uppercased()
         sim.enteredExch2 = exch2Entry.stringValue.uppercased()
     }
 
+    /// Global key handling (port of FormKeyDown/FormKeyPress): function keys
+    /// F1-F11, Insert, Esc, and the '.' ';' ',' '[' '+' shortcuts.
     private func installKeyMonitor() {
+        // F-key keyCodes on macOS: F1=122, F2=120, F3=99, F4=118, F5=96,
+        // F6=97, F7=98, F8=100, F9=101, F10=109, F11=103
         let f1toF8: [UInt16] = [122, 120, 99, 118, 96, 97, 98, 100]
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
@@ -599,6 +624,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
             let mods = event.modifierFlags
             let keyCode = event.keyCode
 
+            // function keys (sync typed call/exchange first)
             if let idx = f1toF8.firstIndex(of: keyCode) {
                 self.syncEntryFields()
                 let msgs: [StationMessage] = [.cq, .nr, .tu, .myCall, .hisCall, .b4, .qm, .nil_]
@@ -625,7 +651,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
                 break
             }
 
-            if keyCode == 53 {  // Esc
+            if keyCode == 53 {  // Esc: abort send
                 self.sim.abortSend()
                 return nil
             }
@@ -650,7 +676,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
                     return event
                 }
             }
-
+     
+            // character shortcuts
             if mods.contains(.control) && chars.lowercased() == "w" {
                 self.sim.wipeBoxes()
                 return nil
@@ -665,6 +692,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
                 self.sim.tuAndSave()
                 return nil
             case " ":
+                // advance to the next exchange field
                 if let currentEditor = self.window?.firstResponder as? NSTextView {
                     if currentEditor.delegate as? NSTextField === self.callEntry {
                         // Call -> Exch2
@@ -703,6 +731,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         updateRitLabel()
     }
 
+    /// Per-contest score-table columns (port of Log.ScoreTableInit).
     private func updateColumns(for contest: SimContest) {
         let headers: [String]
         switch contest {
@@ -743,6 +772,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
     }
 
+    // save regardless of SetMyCall's exchange-validation result, exactly
+    // like the original Edit4Exit (SetMyCall without checking the return)
     @objc private func myCallEntered() {
         _ = sim.setMyCall(callField.stringValue.uppercased())
         Settings.saveToDefaults()
@@ -762,6 +793,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
     }
 
+    // modes are enabled only while stopped
     @objc private func modeChanged() {
         guard !running else { return }
         let mode = RunMode(rawValue: modeCombo.indexOfSelectedItem + 1) ?? .pileup
@@ -795,6 +827,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         Settings.lids = lidsCheck.state == .on
     }
 
+    // persist dB: Db = 60 * (value - 1)
     @objc private func monitorChanged() {
         SimEngine.shared.uiHooks.volume = Float(monitorSlider.doubleValue)
         Settings.monLevel = Int((monitorSlider.doubleValue - 1) * 60)
@@ -804,6 +837,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         sim.masterVolume = Float(outputVolumeSlider.doubleValue)
     }
 
+    /// Settings -> Serial NR (Start/Mid/End of Contest, Custom range).
     @objc private func serialNRMenuItemSelected(_ sender: NSMenuItem) {
         guard let mode = SerialNRType(rawValue: sender.tag) else { return }
         if mode == .customRange {
@@ -822,6 +856,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         Settings.saveToDefaults()
     }
 
+    // accept "01-99" or "1-99"
     private func parseRange(_ text: String, into s: SerialNumberSettings) -> SerialNumberSettings? {
         let parts = text.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 2, parts[0] > 0, parts[0] <= parts[1] else { return nil }
@@ -848,12 +883,14 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         return field.stringValue.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Settings -> Duration (original menu 5/10/15/30/60 min).
     @objc private func durationMenuItemSelected(_ sender: NSMenuItem) {
         Settings.duration = max(1, min(180, sender.tag))
         updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
         Settings.saveToDefaults()
     }
 
+    /// Settings -> CW Max/Min Rx Speed (original menu options 0,1,2,4,6,8,10).
     @objc private func rxSpeedMenuItemSelected(_ sender: NSMenuItem) {
         if sender.menu?.title == "CW Max Rx Speed" {
             Settings.maxRxWpm = sender.tag
@@ -864,6 +901,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         Settings.saveToDefaults()
     }
 
+    
+    /// Settings -> Activity (1..9).
     @objc private func activityMenuItemSelected(_ sender: NSMenuItem) {
         Settings.activity = max(1, min(9, sender.tag))
         updateMenuCheckmarks(sender.menu, selectedTag: sender.tag)
@@ -909,6 +948,9 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         conditionChanged()
     }
 
+    /// Build the Settings menu (Activity/Duration/CW Rx speeds/Serial NR),
+    /// mirroring the original menu-driven layout and keeping the main window
+    /// clean. Serial NR is only enabled for contests that use serial numbers.
     private func buildSettingsMenu() {
         guard let mainMenu = NSApp.mainMenu else { return }
         let settingsItem = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
@@ -938,6 +980,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         addChoices("CW Min Rx Speed", values: [0, 1, 2, 4, 6, 8, 10],
                    action: #selector(rxSpeedMenuItemSelected(_:)), selected: Settings.minRxWpm)
 
+        // Serial NR
         let serialItem = NSMenuItem(title: "Serial NR", action: nil, keyEquivalent: "")
         let serialMenu = NSMenu(title: "Serial NR")
         let serialTitles = ["Start of Contest", "Mid-Contest", "End of Contest", "Custom Range..."]
@@ -952,6 +995,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         serialItem.submenu = serialMenu
         settingsMenu.addItem(serialItem)
 
+        // insert Settings before the Window menu (last item)
         mainMenu.insertItem(settingsItem, at: max(1, mainMenu.items.count - 1))
         updateSerialNRMenuEnabled()
     }
@@ -962,6 +1006,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
     }
 
+    /// Serial NR only applies to contests whose Exch2 is a serial number
+    /// (CQ WPX, HST). For CQ WW (CQ zone) etc. the menu is disabled.
     private func updateSerialNRMenuEnabled() {
         let enabled = Settings.activeContest.exchType2 == .serialNr
         for item in serialNRMenuItems {
@@ -991,7 +1037,8 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         cell.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         return cell
     }
-
+    
+    /// End-of-run score dialog (port of PopupScoreWpx / PopupScoreHst).
     private func showScoreDialog() {
         let log = Log.shared
         let verifiedScore = log.verifiedPoints * log.verifiedMultList.count
