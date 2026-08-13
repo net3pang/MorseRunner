@@ -1,4 +1,4 @@
-# Morse Runner — Cross-Platform
+# Morse Runner — 跨平台版 (Cross-Platform)
 
 > 本项目由 **BH5HIE** 维护。基于 [w7sst/MorseRunner](https://github.com/w7sst/MorseRunner)
 > （Morse Runner Community Edition，MPL-2.0）的 Swift 跨平台重构。
