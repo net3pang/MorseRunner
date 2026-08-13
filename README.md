@@ -1,4 +1,4 @@
-# Morse Runner — 跨平台版 (Cross-Platform)
+# Morse Runner — Cross-Platform
 
 > 本项目由 **BH5HIE** 维护。基于 [w7sst/MorseRunner](https://github.com/w7sst/MorseRunner)
 > （Morse Runner Community Edition，MPL-2.0）的 Swift 跨平台重构。
@@ -60,6 +60,8 @@ swift build
 - 波段条：CW 速度、音高、带宽、活动度、时长，以及 **RxMax / RxMin**（对应原版菜单
   Settings → CW Max/Min Rx Speed，取值 0/1/2/4/6/8/10，0 = 与发送速度一致）
 - 快捷键：`F1` CQ、`F2` NR、`F3` TU、`F4` MyCall、`F5` HisCall、`F6` B4、`F7` ?、`F8` NIL、`F11` 清空、`Esc` 中止、`.`/`,`/`+`/`[` 保存 QSO、`;` 发呼号+序号、`Ctrl-W` 清空
+- Tab / Space：**运行中** `Tab` 在 Call / Exch1 / Exch2 之间循环切换；`Space` 在 Callsign 与 NR 之间切换（停止时 Tab 为系统默认行为）
+- Touch Bar（MacBook Pro）：Run/Stop、CQ、Exch、TU、MyCall、HisCall、? 一键操作；输入框不占候选词条
 - 主音量滑杆解决原版"20k/32k 满幅"过响问题（采样已归一化到 -1..1）
 
 > 关于"只有噪音"：`Run` 后未发 CQ 时的"沙沙"声是模拟接收机底噪（原版
@@ -112,6 +114,21 @@ Sources/
 移植约定与过程记录保留在开发历史中。
 
 ## 已修复的关键问题（早期 Swift 尝试的 bug）
+
+### 第十三轮修复（合入 PR #1 + 用户实测反馈）
+
+1. **Touch Bar 支持**（PR #1）：MacBook Pro Touch Bar 上提供 Run/Stop、CQ、Exch、TU、
+   MyCall、HisCall、? 按钮，运行状态自动刷新；输入时不再弹出系统候选词条。
+2. **CW 速度直接键盘输入**（PR #1）：速度框可点击输入（10-120 wpm），回车生效，
+   加减号同步。同时修复了合入后加减号/快捷键改速被输入框旧值覆盖的问题（现在按触发
+   来源取值：加减号以 stepper 为准，输入框以文本为准）。
+3. **空格键切换焦点**（PR #1）：在 Callsign 输入框按空格切到 NR（Exch2），再按切回，
+   光标停在末尾、不清空内容。
+4. **输入限制**（PR #1）：Callsign/Exch 输入框只允许 A-Z、0-9、/ 和空格，禁用中文
+   输入法，小写自动转大写；回车后不再全选已有文本。
+5. **运行中 Tab 循环切换**：Run 后 `Tab` 只在 Call / Exch1 / Exch2 之间循环，光标
+   停在末尾；停止时保持系统默认 Tab 行为。
+6. **TUI 跨平台构建修复**：移除终端版误引入的 AppKit 死代码，Linux/Windows 构建恢复。
 
 ### 第十二轮修复（用户实测反馈）
 

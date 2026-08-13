@@ -44,9 +44,9 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
     <key>CFBundleIdentifier</key>
     <string>org.morserunner.macos</string>
     <key>CFBundleVersion</key>
-    <string>1.0</string>
+    <string>1.1.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>1.1.0</string>
     <key>CFBundleExecutable</key>
     <string>MorseRunner</string>
     <key>CFBundlePackageType</key>

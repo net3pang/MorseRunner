@@ -238,7 +238,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         wpmField.isEditable = true
         wpmField.isSelectable = true
         wpmField.target = self
-        wpmField.action = #selector(wpmChanged)
+        wpmField.action = #selector(wpmChanged(_:))
         wpmField.alignment = .center
         wpmField.widthAnchor.constraint(equalToConstant: 44).isActive = true
 
@@ -256,7 +256,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
         
         wpmStepper.target = self
-        wpmStepper.action = #selector(wpmChanged)
+        wpmStepper.action = #selector(wpmChanged(_:))
         wpmStepper.autorepeat = true
         pitchCombo.target = self
         pitchCombo.action = #selector(pitchChanged)
@@ -586,7 +586,7 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         exchangeField.stringValue = sim.exchangeEdit
         wpmField.stringValue = String(Settings.wpm)
         wpmStepper.integerValue = Settings.wpm
-        wpmChanged()
+        wpmChanged(nil)
         pitchCombo.selectItem(at: (Settings.pitch - 300) / 50)
         bwCombo.selectItem(at: (Settings.bandWidth - 100) / 50)
         buildSettingsMenu()
@@ -632,6 +632,12 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
                 return nil
             }
             switch keyCode {
+            case 48:  // Tab: while running, cycle only Call/Exch1/Exch2
+                if self.running {
+                    self.cycleEntryFields()
+                    return nil
+                }
+                return event
             case 101:  // F9
                 if mods.contains(.control) || mods.contains(.option) {
                     self.changeSpeed(-1)
@@ -719,10 +725,28 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
     }
 
+    private func cycleEntryFields() {
+        // While running, Tab moves Call -> Exch1 -> Exch2 -> Call, with the
+        // caret at the end of the text (no select-all).
+        let current = (window?.firstResponder as? NSTextView)?.delegate as? NSTextField
+        let next: NSTextField
+        if current === callEntry {
+            next = exch1Entry
+        } else if current === exch1Entry {
+            next = exch2Entry
+        } else {
+            next = callEntry
+        }
+        window?.makeFirstResponder(next)
+        if let editor = next.currentEditor() {
+            editor.selectedRange = NSRange(location: next.stringValue.count, length: 0)
+        }
+    }
+
     private func changeSpeed(_ delta: Int) {
         let wpm = max(10, min(120, Settings.wpm + delta * Settings.wpmStepRate))
         wpmStepper.integerValue = wpm
-        wpmChanged()
+        wpmChanged(nil)
     }
 
     private func adjustRit(_ delta: Int) {
@@ -802,9 +826,18 @@ public final class MainWindowController: NSWindowController, NSTableViewDataSour
         }
     }
 
-    @objc private func wpmChanged() {
-        let inputVal = Int(wpmField.stringValue) ?? wpmStepper.integerValue
-        let wpm = max(10, min(120, inputVal))
+    @objc private func wpmChanged(_ sender: Any?) {
+        // The stepper drives the value when clicked (or when called
+        // programmatically after setting the stepper); the text field drives
+        // it when the user types and presses Return. Without this, a stepper
+        // click is immediately overwritten by the field's old text.
+        let sourceValue: Int
+        if let senderField = sender as? NSTextField, senderField === wpmField {
+            sourceValue = Int(wpmField.stringValue) ?? wpmStepper.integerValue
+        } else {
+            sourceValue = wpmStepper.integerValue
+        }
+        let wpm = max(10, min(120, sourceValue))
         wpmField.stringValue = String(wpm)
         wpmStepper.integerValue = wpm
         wpmLabel.stringValue = "\(wpm) wpm"
