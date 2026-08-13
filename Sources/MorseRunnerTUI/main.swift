@@ -24,6 +24,17 @@
 
 import Foundation
 import MorseRunnerCore
+import AppKit
+
+class NoSelectTextField: NSTextField {
+    // Prevent AppKit's default "select all" behavior and force the cursor to move to the end of the string.
+    override func selectText(_ sender: Any?) {
+        super.selectText(sender)
+        if let edit = currentEditor() {
+            edit.selectedRange = NSRange(location: stringValue.count, length: 0)
+        }
+    }
+}
 
 // MARK: - terminal helpers
 
