@@ -8,7 +8,7 @@
 
 | 平台 | 状态 |
 |------|------|
-| macOS | ✅ 原生 GUI（AppKit + AVAudioEngine），`dist/MorseRunner.app` |
+| macOS | ✅ 原生 GUI（AppKit + AVAudioEngine），`dist/MorseRunner.app`（arm64 + x86_64 通用） |
 | Linux | ✅ 引擎 + 终端 UI（纯 Foundation，无第三方依赖）；音频输出待接入 PortAudio |
 | Windows | 🚧 引擎/终端 UI 可构建（Swift on Windows）；GUI 待开发 |
 
@@ -129,6 +129,8 @@ Sources/
 5. **运行中 Tab 循环切换**：Run 后 `Tab` 只在 Call / Exch1 / Exch2 之间循环，光标
    停在末尾；停止时保持系统默认 Tab 行为。
 6. **TUI 跨平台构建修复**：移除终端版误引入的 AppKit 死代码，Linux/Windows 构建恢复。
+7. **Universal 双架构构建**：macOS `.app` 同时包含 arm64（Apple Silicon）与 x86_64（Intel）
+   两种架构，Intel Mac 可直接运行。
 
 ### 第十二轮修复（用户实测反馈）
 

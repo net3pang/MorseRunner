@@ -25,8 +25,8 @@ jobs:
       - name: Engine tests (headless)
         run: swift test
 
-      - name: Build release app bundle
-        run: swift build -c release --product MorseRunner
+      - name: Build release app bundle (universal arm64 + x86_64)
+        run: swift build -c release --arch arm64 --arch x86_64 --product MorseRunner
 
       - name: Build release TUI
         run: swift build -c release --product MorseRunnerTUI

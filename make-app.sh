@@ -7,10 +7,11 @@ APP="dist/MorseRunner.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# build only the app product (the test target needs @testable, debug only)
-swift build -c release --product MorseRunner
+# build only the app product (the test target needs @testable, debug only),
+# as a universal binary for both Apple Silicon (arm64) and Intel (x86_64).
+swift build -c release --arch arm64 --arch x86_64 --product MorseRunner
 
-cp .build/release/MorseRunner "$APP/Contents/MacOS/MorseRunner"
+cp .build/apple/Products/Release/MorseRunner "$APP/Contents/MacOS/MorseRunner"
 cp -R Resources/* "$APP/Contents/Resources/"
 
 # ---- app icon (generated from tools/make-icon.swift)
@@ -44,9 +45,9 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
     <key>CFBundleIdentifier</key>
     <string>org.morserunner.macos</string>
     <key>CFBundleVersion</key>
-    <string>1.1.0</string>
+    <string>1.1.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.0</string>
+    <string>1.1.1</string>
     <key>CFBundleExecutable</key>
     <string>MorseRunner</string>
     <key>CFBundlePackageType</key>
